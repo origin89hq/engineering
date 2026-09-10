@@ -84,10 +84,14 @@ build. A brand checkout or unpublished release is not a production dependency.
 Copy `templates/workflows/origin89-contribution.yml` into `.github/workflows/`.
 Replace `$default-branch` with the target branch and `$engineering-commit` with
 the full reviewed engineering commit SHA. The shared action checks conventional
-PR titles and commit subjects, common attribution footers, hard-wrapped prose
-paragraphs, and `david/` branches for PRs opened by `lemarier`. Other contributors'
-branch names are unaffected. Configure the action's `branch-owner` and
-`branch-prefix` inputs when a repository has an explicit different convention.
+PR titles and commit subjects, common attribution footers, and hard-wrapped
+prose paragraphs. The shared skill recommends
+`<name-or-nickname>/<what-you-are-working-on>` branches. Personal prefixes have
+no shared default: the checker cannot infer a contributor's preferred nickname.
+To enforce an agreed prefix, configure both `branch-owner` (the GitHub login)
+and `branch-prefix` (the name or nickname followed by `/`) in the consuming
+workflow. Without that configuration, branch names are not checked. Other
+contributors' branch names are unaffected by an individual's configuration.
 
 The workflow runs on PR metadata events using read-only permissions. It needs
 Python 3 and GitHub CLI, both present on GitHub-hosted Ubuntu runners. It reads

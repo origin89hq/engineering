@@ -10,11 +10,11 @@ Adapted from Sentry's commit skill. See [NOTICE.md](NOTICE.md) and
 
 ## Branches and authorization
 
-For David's work, name branches `david/<what-you-are-working-on>`, such as
-`david/batch-readings` or `david/fix-release`. Put the kind of change in the
-commit prefix, not in place of `david/` on the branch. Follow an exact different
-branch name only when the user explicitly requests it. Other contributors use
-their own repository convention.
+Name branches `<name-or-nickname>/<what-you-are-working-on>`, such as
+`alex/batch-readings` or `sam/fix-release`. Use the contributor's established
+prefix when known. Otherwise, suggest their name, username, or nickname as the
+prefix. Follow an exact branch name when the user requests one. Put the kind of
+change in the commit prefix.
 
 Start independent work from the current remote default branch unless the task
 selects another base. Preserve unrelated work with an isolated worktree when

@@ -83,8 +83,9 @@ hardware verification. Do not pad descriptions with a file-by-file transcript.
 
 Follow the [commit rules](skills/origin89-commits/SKILL.md): short, specific
 subjects, usually no body, and no co-author or AI/tool attribution in messages.
-Preserve Git authorship and signing settings. Use `david/<what-you-are-working-on>`
-for David's branches unless an exact different name was requested. The same short
+Preserve Git authorship and signing settings. Use
+`<name-or-nickname>/<what-you-are-working-on>` for branches, respecting the
+contributor's established prefix or an explicitly requested name. The same short
 conventional subject rules apply to PR titles because they become squash commits.
 Write each PR-body paragraph on one physical line; do not copy hard-wrapped
 README text into GitHub comments.

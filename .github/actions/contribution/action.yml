@@ -2,11 +2,11 @@ name: Origin89 contribution metadata
 description: Check PR titles, commit messages, paragraph wrapping, and contributor branch names
 inputs:
   branch-owner:
-    description: GitHub login whose branches use the configured prefix
-    default: lemarier
+    description: Optional GitHub login whose branches use the configured prefix; set with branch-prefix
+    default: ''
   branch-prefix:
-    description: Required branch prefix for that contributor
-    default: david/
+    description: Agreed name or nickname followed by a slash; set with branch-owner
+    default: ''
 runs:
   using: composite
   steps:

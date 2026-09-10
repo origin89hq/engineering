@@ -50,7 +50,7 @@ keeps that evidence.
 Apply [writing](../origin89-writing/SKILL.md) to every document and message.
 Remove AI filler and unsupported claims before delivery. Before creating a branch,
 committing, pushing, or writing a PR, read [commits](../origin89-commits/SKILL.md):
-`david/<what-you-are-working-on>` for David's branches, short conventional commit
+`<name-or-nickname>/<what-you-are-working-on>` branches, short conventional commit
 and PR titles, and no attribution. Preserve legal notices and Git identity.
 Respect the task's commit, push, publish, and equipment authorization; do not ask
 again for an action already authorized.

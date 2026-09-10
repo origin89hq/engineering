@@ -83,7 +83,7 @@ def subject_errors(subject, label):
     return []
 
 
-def validate(pr, pages, expected_head=None, branch_owner='lemarier', branch_prefix='david/'):
+def validate(pr, pages, expected_head=None, branch_owner='', branch_prefix=''):
     """Validate complete REST API responses; malformed or raced snapshots fail closed."""
     if not isinstance(pr, dict) or not isinstance(pages, list):
         raise ValueError('Expected a PR object and paginated commit arrays')
@@ -114,9 +114,10 @@ def validate(pr, pages, expected_head=None, branch_owner='lemarier', branch_pref
     if commits[-1]['sha'] != head['sha']:
         raise ValueError('Commit list does not end at the current PR head')
     errors = subject_errors(title, 'PR title') + body_errors(body or '')
-    if not branch_prefix or branch_prefix.isspace():
-        raise ValueError('Branch prefix must not be empty')
-    if user['login'].casefold() == branch_owner.casefold():
+    if (bool(branch_owner) != bool(branch_prefix)
+            or branch_owner != branch_owner.strip() or branch_prefix != branch_prefix.strip()):
+        raise ValueError('Configure branch-owner and branch-prefix together, without surrounding whitespace')
+    if branch_owner and user['login'].casefold() == branch_owner.casefold():
         if not head['ref'].startswith(branch_prefix) or head['ref'] == branch_prefix:
             errors.append('PR branch: use the configured owner prefix followed by the work description')
     for index, commit in enumerate(commits, 1):
@@ -132,8 +133,8 @@ def main():
     parser.add_argument('pull_request', type=Path)
     parser.add_argument('commit_pages', type=Path)
     parser.add_argument('--expected-head')
-    parser.add_argument('--branch-owner', default='lemarier')
-    parser.add_argument('--branch-prefix', default='david/')
+    parser.add_argument('--branch-owner', default='')
+    parser.add_argument('--branch-prefix', default='')
     args = parser.parse_args()
     try:
         errors = validate(json.loads(args.pull_request.read_text()), json.loads(args.commit_pages.read_text()),
@@ -145,7 +146,9 @@ def main():
         parser.exit(1, f'Contribution check: {error}\n')
     if errors:
         parser.exit(1, '\n'.join(errors) + '\n')
-    print('PR title, commit messages, body formatting, and branch convention passed.')
+    print('PR title, commit messages, and body formatting passed.')
+    if args.branch_owner:
+        print('Configured contributor branch convention passed.')
 
 
 if __name__ == '__main__':

@@ -18,7 +18,7 @@ A, B = 'a' * 40, 'b' * 40
 
 def metadata():
     return ({'title': 'perf: batch archived readings', 'body': 'Fetch archived readings in batches.\n\nValidation: success, invalid keys, limits, and upstream failures passed.',
-             'head': {'ref': 'david/batch-readings', 'sha': A}, 'user': {'login': 'lemarier'}, 'commits': 1},
+             'head': {'ref': 'alex/batch-readings', 'sha': A}, 'user': {'login': 'alex-dev'}, 'commits': 1},
             [[{'sha': A, 'commit': {'message': 'perf: batch archived readings'}}]])
 
 
@@ -65,25 +65,40 @@ class ContributionTests(unittest.TestCase):
         pr['body'] = 'The settings disable attribution.\n\n```text\nCo-authored-by: example\n```'
         self.assertEqual(check.validate(pr, pages), [])
 
-    def test_david_prefix_applies_only_to_configured_contributor(self):
+    def test_personal_prefix_has_no_shared_default(self):
         pr, pages = metadata()
+        for branch in ('alex/batch-readings', 'sam/batch-readings', 'existing-branch'):
+            with self.subTest(branch=branch):
+                pr['head']['ref'] = branch
+                self.assertEqual(check.validate(pr, pages), [])
+
+    def test_nickname_prefix_applies_only_to_configured_contributor(self):
+        pr, pages = metadata()
+        config = {'branch_owner': 'alex-dev', 'branch_prefix': 'alex/'}
+        self.assertEqual(check.validate(pr, pages, **config), [])
         pr['head']['ref'] = 'perf/batch-readings'
-        self.assertTrue(any('PR branch:' in error for error in check.validate(pr, pages)))
+        self.assertTrue(any('PR branch:' in error for error in check.validate(pr, pages, **config)))
         pr['user']['login'] = 'another-contributor'
-        self.assertEqual(check.validate(pr, pages), [])
+        self.assertEqual(check.validate(pr, pages, **config), [])
         pr['user']['login'] = 'github-actions[bot]'
         pr['head']['ref'] = 'changeset-release/main'
-        self.assertEqual(check.validate(pr, pages), [])
-        pr['user']['login'] = 'LEMARIER'
-        pr['head']['ref'] = 'david/'
-        self.assertTrue(check.validate(pr, pages))
+        self.assertEqual(check.validate(pr, pages, **config), [])
+        pr['user']['login'] = 'ALEX-DEV'
+        pr['head']['ref'] = 'alex/batch-readings'
+        self.assertEqual(check.validate(pr, pages, **config), [])
+        pr['head']['ref'] = 'alex/'
+        self.assertTrue(check.validate(pr, pages, **config))
 
     def test_explicit_repository_branch_convention_can_be_configured(self):
         pr, pages = metadata()
         pr['head']['ref'] = 'release/prepare'
-        self.assertEqual(check.validate(pr, pages, branch_prefix='release/'), [])
-        with self.assertRaises(ValueError):
-            check.validate(pr, pages, branch_prefix='')
+        self.assertEqual(check.validate(pr, pages, branch_owner='alex-dev', branch_prefix='release/'), [])
+
+    def test_partial_or_whitespace_branch_configuration_fails(self):
+        pr, pages = metadata()
+        for owner, prefix in (('alex-dev', ''), ('', 'alex/'), (' ', 'alex/'), ('alex-dev', ' '), (' alex-dev', 'alex/'), ('alex-dev', 'alex/ ')):
+            with self.subTest(owner=owner, prefix=prefix), self.assertRaisesRegex(ValueError, 'Configure'):
+                check.validate(pr, pages, branch_owner=owner, branch_prefix=prefix)
 
     def test_hard_wrapped_paragraphs_are_rejected(self):
         for body in ('First part of a paragraph\ncontinues here.',
