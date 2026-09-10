@@ -81,8 +81,10 @@ build. A brand checkout or unpublished release is not a production dependency.
 
 ## AI code review
 
-For Claude workflow templates and native Codex/Copilot review instructions, see
-the [AI review setup](code-review.md).
+Use the existing Codex and Copilot integrations for automatic PR reviews.
+The [AI review setup](code-review.md) covers their native instructions and the
+optional `@claude` workflow for explicit requests. Do not add automatic Claude
+reviews.
 
 ## Biome and just
 
