@@ -1,0 +1,29 @@
+name: Origin89 contribution metadata
+description: Check PR titles, commit messages, paragraph wrapping, and contributor branch names
+inputs:
+  branch-owner:
+    description: GitHub login whose branches use the configured prefix
+    default: lemarier
+  branch-prefix:
+    description: Required branch prefix for that contributor
+    default: david/
+runs:
+  using: composite
+  steps:
+    - name: Check contribution metadata
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        BRANCH_OWNER: ${{ inputs.branch-owner }}
+        BRANCH_PREFIX: ${{ inputs.branch-prefix }}
+      run: |
+        set -euo pipefail
+        [[ "$PR_NUMBER" =~ ^[0-9]+$ && "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
+        scratch=$(mktemp -d "$RUNNER_TEMP/contribution.XXXXXX")
+        trap 'rm -rf "$scratch"' EXIT
+        gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > "$scratch/pr.json"
+        gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/commits?per_page=100" > "$scratch/commits.json"
+        python3 "$GITHUB_ACTION_PATH/check.py" "$scratch/pr.json" "$scratch/commits.json" \
+          --expected-head "$EXPECTED_HEAD" --branch-owner "$BRANCH_OWNER" --branch-prefix "$BRANCH_PREFIX"

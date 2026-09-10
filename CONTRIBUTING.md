@@ -83,8 +83,15 @@ hardware verification. Do not pad descriptions with a file-by-file transcript.
 
 Follow the [commit rules](skills/origin89-commits/SKILL.md): short, specific
 subjects, usually no body, and no co-author or AI/tool attribution in messages.
-Preserve Git authorship and signing settings. Use a `david/` branch prefix when
-working on David's branches unless a different name was requested.
+Preserve Git authorship and signing settings. Use `david/<what-you-are-working-on>`
+for David's branches unless an exact different name was requested. The same short
+conventional subject rules apply to PR titles because they become squash commits.
+Write each PR-body paragraph on one physical line; do not copy hard-wrapped
+README text into GitHub comments.
+
+The [adoption guide](docs/adopting.md#contribution-metadata-checks) describes the
+shared metadata check. It checks mechanical rules; it cannot establish task
+authorization or replace review of the change and its evidence.
 
 Respect the current task's authorization. Preparing changes does not authorize
 committing, pushing, publishing, or operating equipment. An action already

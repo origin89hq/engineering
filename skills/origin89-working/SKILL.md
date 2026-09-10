@@ -48,11 +48,12 @@ Preserve required release, hardware, and upstream-license records where the repo
 keeps that evidence.
 
 Apply [writing](../origin89-writing/SKILL.md) to every document and message.
-Remove AI filler and unsupported claims before delivery. For commit work, read
-[commits](../origin89-commits/SKILL.md): short messages without co-author or AI/tool
-attribution, while preserving legal notices and Git identity. Respect the task's
-commit, push, publish, and equipment authorization; do not ask again for an action
-already authorized.
+Remove AI filler and unsupported claims before delivery. Before creating a branch,
+committing, pushing, or writing a PR, read [commits](../origin89-commits/SKILL.md):
+`david/<what-you-are-working-on>` for David's branches, short conventional commit
+and PR titles, and no attribution. Preserve legal notices and Git identity.
+Respect the task's commit, push, publish, and equipment authorization; do not ask
+again for an action already authorized.
 
 Read the relevant sibling skill for [Rust](../origin89-rust/SKILL.md),
 [TypeScript](../origin89-typescript/SKILL.md), [testing](../origin89-testing/SKILL.md),

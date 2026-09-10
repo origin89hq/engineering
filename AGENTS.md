@@ -11,8 +11,8 @@ maintenance cost before adding anything. Internal RFCs and research belong in
 records, or AI filler.
 
 Run `just check` to test the refresh script offline and check links and JSON.
-For changed workflows, render `$default-branch` and run actionlint. Check
-changed JSON, skill frontmatter, links, and required notices. Exercise
+For changed workflows, render `$default-branch` and `$engineering-commit`, then
+run actionlint. Check changed JSON, skill frontmatter, links, and required notices. Exercise
 executable templates in a disposable consumer. See `docs/skill-validation.md`
 for skill review scenarios.
 

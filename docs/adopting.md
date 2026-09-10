@@ -8,7 +8,8 @@ Changesets. The release starter targets public npm packages using pnpm.
 Maintain shared skills in engineering. Each adopting repo has a setup script and
 an ignored cache. At the start of a new task, `just skills-sync` checks
 engineering's `main` revision, downloads changed skills, and links them through
-`.agents/skills/`. Shared edits reach the repo on its next successful refresh.
+`.agents/skills/` and `.claude/skills/`. Shared edits reach the repo on its next
+successful refresh.
 
 Merge these files in an adoption PR:
 
@@ -16,6 +17,8 @@ Merge these files in an adoption PR:
 | --- | --- |
 | `templates/agents/sync-engineering.py` | `.origin89/sync-engineering.py` |
 | `templates/agents/AGENTS.md` | Merge into root `AGENTS.md` |
+| `templates/agents/CLAUDE.md` | Merge the import into root `CLAUDE.md` |
+| `templates/agents/claude-settings.fragment.json` | Merge into `.claude/settings.json` |
 | `templates/agents/gitignore.fragment` | Merge into `.gitignore` |
 | `templates/just/skills.justfile` | Merge into root `justfile` |
 
@@ -36,6 +39,15 @@ This is a task-start instruction, not a background update service. Codex support
 [agent instructions are loaded per run](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 An active session's skill selector may not refresh immediately; read the files
 under the printed snapshot path to load the updated instructions in that task.
+Claude reads `CLAUDE.md` at startup. Import `@AGENTS.md` there so the task-start
+instructions load, instead of relying on a sentence asking Claude to open another
+file. Keep any stronger local instructions below the import. Its project skills
+use `.claude/skills/`; the bootstrap links both assistants to the same cache.
+After first adding that directory, restart Claude and confirm the skill list.
+The settings fragment disables Claude's default commit and PR attribution;
+merge it without changing permissions, hooks, or other local settings. See
+[Claude's memory documentation](https://code.claude.com/docs/en/memory#agentsmd)
+and [attribution settings](https://code.claude.com/docs/en/settings).
 For another assistant, configure the same start step in its native instructions.
 A link to this repo alone does not load any skills.
 
@@ -66,6 +78,35 @@ Do not replace existing compiler options wholesale. For equipment projects, use
 Adopt [brand integration](brand.md) for branded surfaces. Verify the published
 package, pin it with pnpm, and validate imports or generated copies in a production
 build. A brand checkout or unpublished release is not a production dependency.
+
+## Contribution metadata checks
+
+Copy `templates/workflows/origin89-contribution.yml` into `.github/workflows/`.
+Replace `$default-branch` with the target branch and `$engineering-commit` with
+the full reviewed engineering commit SHA. The shared action checks conventional
+PR titles and commit subjects, common attribution footers, hard-wrapped prose
+paragraphs, and `david/` branches for PRs opened by `lemarier`. Other contributors'
+branch names are unaffected. Configure the action's `branch-owner` and
+`branch-prefix` inputs when a repository has an explicit different convention.
+
+The workflow runs on PR metadata events using read-only permissions. It needs
+Python 3 and GitHub CLI, both present on GitHub-hosted Ubuntu runners. It reads
+PR metadata through the API and runs the pinned action; never add a checkout or
+execution of PR-head code to this `pull_request_target` workflow. See
+[GitHub's event documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target).
+
+Merge the shared action before its adoption PRs. The metadata workflow becomes
+active when installed on the default branch. Verify a run before making its
+`contribution` check required where repository protection is available. Until
+then, a failed run is visible but does not prevent merging. Existing application
+checks stay required. Update the action pin through reviewed dependency PRs.
+
+This checks formatting, not whether a user authorized a push or whether a PR's
+claims are true. Review those against the task and actual validation. Markdown
+lists, tables, quotes, code examples, and intentional line breaks are allowed;
+the prose check is not a complete Markdown parser. An incomplete commit response
+or a changed head fails the check instead of reporting a partial pass. GitHub's
+PR commit endpoint returns at most 250 commits; split larger PRs before review.
 
 ## Biome and just
 

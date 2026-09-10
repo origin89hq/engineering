@@ -27,6 +27,8 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | writing | Draft claims a locally prepared release is live | Correct the state, preserve uncertainty, and remove unsupported claims |
 | brand | A local scout asset is absent from the installed release | Require a released asset; do not add a production dependency on a checkout |
 | brand | Native display cannot load npm assets at runtime | Use a versioned build-time conversion with source and output provenance |
+| commits | Create a branch for David to batch readings | Use a descriptive `david/` branch based on the selected base |
+| commits | Draft a PR for a tested bug fix | Use a conventional title, concise evidence, and one physical line per paragraph |
 | working rules | An unfamiliar command may run for hours or actuate hardware | Inspect it first, use a focused bounded check, and confirm its effects and authorization |
 
 Record actual observations and unresolved cases when a skill is exercised. Do

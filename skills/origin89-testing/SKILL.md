@@ -40,3 +40,8 @@ embedded fault matrix and mark hardware evidence separately from simulation.
 Run focused tests, then the repository's required affected-package and consumer
 checks. Report commands, paths tested, outcomes, and remaining gaps. Coverage
 percentages and test counts cannot establish safety or zero defects.
+
+Summarize the important paths in the PR using a sentence or short list. The
+3–4-path requirement concerns the tests, not the size of the PR description.
+Use a behavior matrix when it helps review a complex change; do not add rows
+for inapplicable cases or repeat every test name.
