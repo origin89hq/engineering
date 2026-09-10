@@ -90,6 +90,12 @@ errors, weakened tests, and compatibility breaks. Preserve unrelated staged and
 unstaged work. Never describe a command as passed if it was skipped, interrupted,
 or only inspected.
 
+Confirmed problems left outside the current fix must have a GitHub issue. Follow
+the [unfinished-work rule](../skills/origin89-working/SKILL.md#track-unfinished-work):
+search with `gh`, reuse an existing issue or create one with evidence, and return
+its URL. A chat note or TODO does not replace tracking. Finish authorized work;
+do not move a current PR blocker into the backlog to call the task complete.
+
 ## Work with AI assistants
 
 Keep root `AGENTS.md` concise: repository map, exact commands, essential rules,

@@ -52,6 +52,10 @@ The [working guide](docs/development.md) covers command execution, AI-assisted
 work, and review. The [writing standard](docs/writing.md) applies to documentation,
 comments, commit messages, PRs, and assistant messages.
 
+Track confirmed problems left outside the current fix using the
+[shared issue rule](skills/origin89-working/SKILL.md#track-unfinished-work).
+Use `gh` to find or create the issue and include its URL in the handoff.
+
 For branded interfaces, follow the [brand integration standard](docs/brand.md).
 Use the package's public assets and tokens. Make shared identity changes in
 brand, keep the editable sources, and release the package before updating

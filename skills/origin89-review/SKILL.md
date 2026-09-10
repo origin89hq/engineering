@@ -71,3 +71,11 @@ already-reported issue unless new evidence changes it. Apply the
 [writing](../origin89-writing/SKILL.md) skill to the response. Keep each GitHub
 comment paragraph on one physical line; summarize evidence instead of listing
 every test name or recounting the review session.
+
+Keep defects introduced by the reviewed PR in its review; do not open a second
+issue for each finding or treat an issue as permission to merge a known blocker.
+For confirmed pre-existing problems or work explicitly deferred from the PR,
+follow [unfinished-work tracking](../origin89-working/SKILL.md#track-unfinished-work):
+use `gh` to find or create the issue and link it when issue filing is authorized.
+In a comments-only review, report the filing restriction and give the issue draft
+instead of silently expanding the job's permissions.

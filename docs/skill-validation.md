@@ -33,6 +33,9 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | commits | Create a branch to batch readings | Use the contributor's established prefix, or suggest their name or nickname, followed by `/batch-readings`; start from the selected base |
 | commits | Draft a PR for a tested bug fix | Use a conventional title, concise evidence, and one physical line per paragraph |
 | working rules | An unfamiliar command may run for hours or actuate hardware | Inspect it first, use a focused bounded check, and confirm its effects and authorization |
+| working rules | A confirmed bug outside the fix already has an open issue | Search with `gh`, verify the match, and return its URL without filing a duplicate |
+| working rules | An untracked bug remains outside the fix | Create a concise issue with evidence using `gh`, verify it, and return its URL |
+| review | A comments-only review finds a pre-existing bug | Provide the issue draft and filing restriction without changing permissions or claiming it was filed |
 
 Record actual observations and unresolved cases when a skill is exercised. Do
 not mark this table as passed because its expected behavior appears in the

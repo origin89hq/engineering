@@ -47,6 +47,35 @@ not add agent transcripts, session reports, or documentation trees for ceremony.
 Preserve required release, hardware, and upstream-license records where the repo
 keeps that evidence.
 
+## Track unfinished work
+
+Every confirmed, actionable problem left outside the current fix must have an
+issue in the owning repository. A chat note, TODO, or checked-in report is not
+enough. Finish the authorized fix first; filing an issue does not excuse leaving
+that work incomplete. Do not file speculative improvements or duplicate a defect
+already being fixed in the current PR.
+
+Use `gh` with an explicit `--repo owner/repo`, verified from the Git remote:
+
+1. Search with `gh issue list --repo owner/repo --state all --search 'keywords'`.
+   Read relevant matches with `gh issue view`. Link an existing open issue when
+   it covers the same problem; inspect closed matches before treating it as new.
+2. If no open issue covers it, create one:
+   `gh issue create --repo owner/repo --title 'Specific problem' --body-file /path/to/issue.md`.
+   Replace these example values. Give the trigger or reproduction, expected and
+   actual behavior, impact, relevant code or PR links, and a concrete next step.
+   Keep the body concise, with one
+   physical line per paragraph and no assistant attribution.
+3. Read back the created issue with `gh issue view` and include its URL in the
+   handoff. One issue should cover one problem, not every symptom or mention.
+
+Respect explicit read-only or no-posting instructions and private security
+reporting rules. If issue creation is unavailable or outside the task's posting
+authorization, provide a ready-to-file title and body, explain the blocker, and
+state that nothing was filed. Do not change token permissions to bypass it.
+
+## Apply the shared skills
+
 Apply [writing](../origin89-writing/SKILL.md) to every document and message.
 Remove AI filler and unsupported claims before delivery. Before creating a branch,
 committing, pushing, or writing a PR, read [commits](../origin89-commits/SKILL.md):
