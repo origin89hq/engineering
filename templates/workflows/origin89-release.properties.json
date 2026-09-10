@@ -1,0 +1,12 @@
+{
+  "name": "Origin89 package releases",
+  "description": "Changesets release PRs and npm trusted publishing for pnpm packages.",
+  "iconName": "octicon package",
+  "categories": [
+    "JavaScript",
+    "TypeScript"
+  ],
+  "filePatterns": [
+    "^package\\.json$"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Origin89 package checks",
+  "description": "Build, validate generated outputs, and check pending Changesets for pnpm packages.",
+  "iconName": "octicon package",
+  "categories": [
+    "JavaScript",
+    "TypeScript"
+  ],
+  "filePatterns": [
+    "^package\\.json$"
+  ]
+}
