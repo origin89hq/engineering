@@ -5,6 +5,7 @@ from pathlib import Path
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 import urllib.error
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'templates/agents/sync-engineering.py'
@@ -156,6 +157,54 @@ class RefreshTests(unittest.TestCase):
         self.assertFalse((self.discovery / 'origin89-rust').exists())
         self.assertEqual((local / 'SKILL.md').read_text(), 'Local rules')
         self.assert_current(A)
+
+    def test_failed_activation_preserves_discovery_and_can_retry(self):
+        for installed in (False, True):
+            for failure in ('claude', 'next', 'current'):
+                with self.subTest(installed=installed, failure=failure), tempfile.TemporaryDirectory() as scratch:
+                    project = Path(scratch).resolve()
+                    cache = project / '.origin89/engineering'
+                    if installed:
+                        sync.refresh(project, Remote())
+                    discoveries = [project / assistant / 'skills' for assistant in ('.agents', '.claude')]
+                    for discovery in discoveries:
+                        local = discovery / 'board-specific'
+                        local.mkdir(parents=True)
+                        (local / 'SKILL.md').write_text('Local rules')
+                    before = [{p.name: p.readlink() for p in d.iterdir() if p.is_symlink()}
+                              for d in discoveries]
+                    symlink_to, replace = Path.symlink_to, sync.os.replace
+
+                    def fail_symlink(path, target, **kwargs):
+                        if ((failure == 'claude' and path == discoveries[1] / 'origin89-rust')
+                                or (failure == 'next' and path == cache / 'next')):
+                            raise PermissionError('injected activation failure')
+                        return symlink_to(path, target, **kwargs)
+
+                    def fail_replace(source, destination):
+                        if failure == 'current' and destination == cache / 'current':
+                            raise PermissionError('injected activation failure')
+                        return replace(source, destination)
+
+                    remote = Remote(B, archive(BASE + ('origin89-rust',), suffix='Updated.'))
+                    with mock.patch.object(Path, 'symlink_to', fail_symlink), mock.patch.object(sync.os, 'replace', fail_replace):
+                        with self.assertRaisesRegex(PermissionError, 'injected activation failure'):
+                            sync.refresh(project, remote)
+                    for discovery, original in zip(discoveries, before):
+                        self.assertEqual({p.name: p.readlink() for p in discovery.iterdir() if p.is_symlink()}, original)
+                        self.assertEqual((discovery / 'board-specific/SKILL.md').read_text(), 'Local rules')
+                        for name in original:
+                            self.assertNotIn('Updated.', (discovery / name / 'SKILL.md').read_text())
+                    if installed:
+                        self.assertEqual((cache / 'current').readlink().as_posix(), f'versions/{A}')
+                    else:
+                        self.assertFalse((cache / 'current').is_symlink())
+                    self.assertFalse((cache / 'next').is_symlink())
+                    self.assertFalse((cache / 'sync.lock').exists())
+                    sync.refresh(project, remote)
+                    self.assertEqual((cache / 'current').readlink().as_posix(), f'versions/{B}')
+                    for discovery in discoveries:
+                        self.assertIn('Updated.', (discovery / 'origin89-rust/SKILL.md').read_text())
 
     def test_claude_custom_link_is_not_replaced(self):
         self.claude.mkdir(parents=True)
