@@ -1,6 +1,7 @@
 # Working in this repository
 
-At the start of each new task, run `just skills-sync` from the repository root.
+For hosted PR reviews, follow `Code Review Rules` below without running the local
+skills refresh. For other tasks, run `just skills-sync` from the repository root.
 Read `skills/origin89-working/SKILL.md` and the relevant domain skills under the
 immutable `path` printed by that command. Keep that snapshot for the task; do not
 refresh it halfway through work. Before branch, commit, push, or PR operations,
@@ -20,3 +21,23 @@ and exceptions below. Internal RFCs and research belong in
 only when its value and upkeep are clear; remove AI filler from every message.
 
 <!-- During adoption, add the repo map, commands, and local differences. -->
+
+## Code Review Rules
+
+Read the shared `origin89-review` skill and relevant domain skills when available.
+In hosted review jobs that already provide `.origin89/engineering/skills/`, use
+that checkout without running the local refresh. If shared context is missing,
+review against the rules below and disclose that limit.
+
+- Flag changes that bypass authorization, lose data or provenance, break a
+  supported contract, or turn unknown or stale equipment input into permission
+  to act. Check callers and existing guards before reporting a defect.
+- Require meaningful success, invalid-input, boundary, and failure coverage for
+  changed nontrivial behavior. Respect simpler contracts with fewer paths;
+  hazardous behavior needs its full fault matrix and relevant bench evidence.
+- For Rust domain logic, prefer typed state, errors, units, and identifiers.
+  Strings at text boundaries are expected; flag strings that discard useful
+  invariants or leave invalid domain states representable.
+- Report the trigger, consequence, and precise location. Distinguish checks run
+  from missing evidence. Leave formatting and metadata to CI, and avoid duplicate
+  or speculative findings. A review request does not authorize implementation.

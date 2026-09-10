@@ -19,6 +19,12 @@ A review request authorizes inspection and relevant checks. Make edits only when
 fixing is part of the task. Do not commit, push, or post a review without that
 authorization; preserve any authorization already given.
 
+For a PR, establish the current head and base before using CI results or earlier
+comments as evidence. Read applicable `Code Review Rules` in `AGENTS.md`. Use
+the shared skills actually available in the task; if the hosted reviewer lacks
+them, disclose that limit and use the repository's local rules. Do not claim a
+linked document was loaded without reading it.
+
 Verify the repository's `just check` reaches its required checks.
 Node/TypeScript uses Biome alongside type checking, tests, and builds; Rust and
 hardware retain their required checks. Do not treat a formatting pass as
@@ -36,6 +42,11 @@ For equipment control, inspect safe-state handling, stale or invalid readings,
 command/feedback disagreement, reboot behavior, retries, and timing bounds. Use
 the installed embedded skill or the repository's safety procedure when relevant.
 For Rust, inspect ownership, panic paths, unsafe contracts, and synchronization.
+Read the [Rust](../origin89-rust/SKILL.md),
+[TypeScript](../origin89-typescript/SKILL.md),
+[embedded](../origin89-embedded/SKILL.md),
+[Embassy](../origin89-embassy/SKILL.md), or [brand](../origin89-brand/SKILL.md)
+skill when the changed behavior falls within that domain.
 
 Require 3–4 distinct behavioral paths for changed nontrivial functions, plus all
 additional relevant branches. Check that assertions establish the contract and
@@ -45,6 +56,8 @@ hazardous code can need many more. Look beyond test counts and coverage totals.
 Before reporting a defect, verify its trigger and consequence, search for a guard
 elsewhere, and inspect the existing tests. Distinguish demonstrated issues from
 unverified concerns. Do not manufacture findings or block on personal style.
+For a standards violation, identify the applicable rule and explain its concrete
+effect. Leave deterministic formatting and commit-metadata checks to CI.
 
 ## Deliver actionable findings
 
@@ -52,3 +65,9 @@ Lead with findings ordered by consequence. For each, give the file and line,
 trigger, effect, evidence, and a concrete correction. Name the checks actually
 run and any missing environment or evidence. If nothing actionable was found,
 say so with the review limits. Do not claim that a clean review proves safety.
+
+Before posting, check existing findings and avoid repeating a resolved or
+already-reported issue unless new evidence changes it. Apply the
+[writing](../origin89-writing/SKILL.md) skill to the response. Keep each GitHub
+comment paragraph on one physical line; summarize evidence instead of listing
+every test name or recounting the review session.

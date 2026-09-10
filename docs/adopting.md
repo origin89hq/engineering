@@ -81,6 +81,10 @@ build. A brand checkout or unpublished release is not a production dependency.
 
 ## Contribution metadata checks
 
+For Claude workflow templates and native Codex/Copilot review instructions, see
+the [AI review setup](code-review.md). Keep that setup separate from the
+deterministic metadata check below.
+
 Copy `templates/workflows/origin89-contribution.yml` into `.github/workflows/`.
 Replace `$default-branch` with the target branch and `$engineering-commit` with
 the full reviewed engineering commit SHA. The shared action checks conventional

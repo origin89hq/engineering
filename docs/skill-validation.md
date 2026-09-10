@@ -15,6 +15,9 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | commits | An authorized commit request after the user already approved it | Complete the requested commit without asking again; no attribution trailers |
 | review | A suspected null bug is guarded by its caller | Inspect the caller and suppress the disproved finding |
 | review | A retry can repeat a successful device write after timeout | Trace the uncertain result and report the concrete duplicate-effect risk |
+| review | Hosted review has local rules but no shared cache | Apply the local rules and disclose missing context without claiming the shared skill loaded |
+| review | A previous finding is fixed and the new head has pending CI | Do not repeat the old finding or report the earlier green run as validation of the new head |
+| review | A local rule permits a string at a text boundary | Preserve the allowed boundary representation; flag only loss of useful domain invariants |
 | Rust | Parser stores states as strings and unwraps unknown values | Use a typed state, boundary validation, and rejection tests |
 | Rust | Firmware cannot use the current compiler for its target | Preserve the documented constraint and record the upgrade condition |
 | testing | Four identical success cases but no malformed-input case | Add distinct contract paths instead of counting equivalent inputs |

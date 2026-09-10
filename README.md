@@ -11,6 +11,7 @@ Start with [contributing](CONTRIBUTING.md) and the [adoption guide](docs/adoptin
 | [Repository structure](docs/repository-structure.md) | apps, crates, packages, workspaces, and reuse |
 | [Documentation](docs/documentation.md) | Useful docs, private research, and maintenance cost |
 | [Working practices](docs/development.md) | Complete work, deliberate commands, AI-assisted development, review |
+| [AI review setup](docs/code-review.md) | Claude workflows, Codex review rules, and Copilot instructions |
 | [Rust](docs/rust.md) | Typed domain models, ownership, errors, unsafe code, verification |
 | [Node and TypeScript](docs/typescript.md) | pnpm, strict types, runtime validation, async behavior |
 | [Tooling](docs/tooling.md) | just recipes, pnpm, Biome, and existing domain tools |
