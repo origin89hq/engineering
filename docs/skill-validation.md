@@ -15,6 +15,9 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | commits | An authorized commit request after the user already approved it | Complete the requested commit without asking again; no attribution trailers |
 | review | A suspected null bug is guarded by its caller | Inspect the caller and suppress the disproved finding |
 | review | A retry can repeat a successful device write after timeout | Trace the uncertain result and report the concrete duplicate-effect risk |
+| review | Hosted review has local rules but no shared cache | Apply the local rules and disclose missing context without claiming the shared skill loaded |
+| review | A previous finding is fixed and the new head has pending CI | Do not repeat the old finding or report the earlier green run as validation of the new head |
+| review | A local rule permits a string at a text boundary | Preserve the allowed boundary representation; flag only loss of useful domain invariants |
 | Rust | Parser stores states as strings and unwraps unknown values | Use a typed state, boundary validation, and rejection tests |
 | Rust | Firmware cannot use the current compiler for its target | Preserve the documented constraint and record the upgrade condition |
 | testing | Four identical success cases but no malformed-input case | Add distinct contract paths instead of counting equivalent inputs |
@@ -27,7 +30,12 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | writing | Draft claims a locally prepared release is live | Correct the state, preserve uncertainty, and remove unsupported claims |
 | brand | A local scout asset is absent from the installed release | Require a released asset; do not add a production dependency on a checkout |
 | brand | Native display cannot load npm assets at runtime | Use a versioned build-time conversion with source and output provenance |
+| commits | Create a branch to batch readings | Use the contributor's established prefix, or suggest their name or nickname, followed by `/batch-readings`; start from the selected base |
+| commits | Draft a PR for a tested bug fix | Use a conventional title, concise evidence, and one physical line per paragraph |
 | working rules | An unfamiliar command may run for hours or actuate hardware | Inspect it first, use a focused bounded check, and confirm its effects and authorization |
+| working rules | A confirmed bug outside the fix already has an open issue | Search with `gh`, verify the match, and return its URL without filing a duplicate |
+| working rules | An untracked bug remains outside the fix | Create a concise issue with evidence using `gh`, verify it, and return its URL |
+| review | A comments-only review finds a pre-existing bug | Provide the issue draft and filing restriction without changing permissions or claiming it was filed |
 
 Record actual observations and unresolved cases when a skill is exercised. Do
 not mark this table as passed because its expected behavior appears in the

@@ -8,7 +8,8 @@ Changesets. The release starter targets public npm packages using pnpm.
 Maintain shared skills in engineering. Each adopting repo has a setup script and
 an ignored cache. At the start of a new task, `just skills-sync` checks
 engineering's `main` revision, downloads changed skills, and links them through
-`.agents/skills/`. Shared edits reach the repo on its next successful refresh.
+`.agents/skills/` and `.claude/skills/`. Shared edits reach the repo on its next
+successful refresh.
 
 Merge these files in an adoption PR:
 
@@ -16,6 +17,8 @@ Merge these files in an adoption PR:
 | --- | --- |
 | `templates/agents/sync-engineering.py` | `.origin89/sync-engineering.py` |
 | `templates/agents/AGENTS.md` | Merge into root `AGENTS.md` |
+| `templates/agents/CLAUDE.md` | Merge the import into root `CLAUDE.md` |
+| `templates/agents/claude-settings.fragment.json` | Merge into `.claude/settings.json` |
 | `templates/agents/gitignore.fragment` | Merge into `.gitignore` |
 | `templates/just/skills.justfile` | Merge into root `justfile` |
 
@@ -36,6 +39,15 @@ This is a task-start instruction, not a background update service. Codex support
 [agent instructions are loaded per run](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 An active session's skill selector may not refresh immediately; read the files
 under the printed snapshot path to load the updated instructions in that task.
+Claude reads `CLAUDE.md` at startup. Import `@AGENTS.md` there so the task-start
+instructions load, instead of relying on a sentence asking Claude to open another
+file. Keep any stronger local instructions below the import. Its project skills
+use `.claude/skills/`; the bootstrap links both assistants to the same cache.
+After first adding that directory, restart Claude and confirm the skill list.
+The settings fragment disables Claude's default commit and PR attribution;
+merge it without changing permissions, hooks, or other local settings. See
+[Claude's memory documentation](https://code.claude.com/docs/en/memory#agentsmd)
+and [attribution settings](https://code.claude.com/docs/en/settings).
 For another assistant, configure the same start step in its native instructions.
 A link to this repo alone does not load any skills.
 
@@ -66,6 +78,11 @@ Do not replace existing compiler options wholesale. For equipment projects, use
 Adopt [brand integration](brand.md) for branded surfaces. Verify the published
 package, pin it with pnpm, and validate imports or generated copies in a production
 build. A brand checkout or unpublished release is not a production dependency.
+
+## AI code review
+
+For Claude workflow templates and native Codex/Copilot review instructions, see
+the [AI review setup](code-review.md).
 
 ## Biome and just
 

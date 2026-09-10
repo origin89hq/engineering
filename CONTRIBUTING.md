@@ -52,6 +52,10 @@ The [working guide](docs/development.md) covers command execution, AI-assisted
 work, and review. The [writing standard](docs/writing.md) applies to documentation,
 comments, commit messages, PRs, and assistant messages.
 
+Track confirmed problems left outside the current fix using the
+[shared issue rule](skills/origin89-working/SKILL.md#track-unfinished-work).
+Use `gh` to find or create the issue and include its URL in the handoff.
+
 For branded interfaces, follow the [brand integration standard](docs/brand.md).
 Use the package's public assets and tokens. Make shared identity changes in
 brand, keep the editable sources, and release the package before updating
@@ -83,8 +87,12 @@ hardware verification. Do not pad descriptions with a file-by-file transcript.
 
 Follow the [commit rules](skills/origin89-commits/SKILL.md): short, specific
 subjects, usually no body, and no co-author or AI/tool attribution in messages.
-Preserve Git authorship and signing settings. Use a `david/` branch prefix when
-working on David's branches unless a different name was requested.
+Preserve Git authorship and signing settings. Use
+`<name-or-nickname>/<what-you-are-working-on>` for branches, respecting the
+contributor's established prefix or an explicitly requested name. The same short
+conventional subject rules apply to PR titles because they become squash commits.
+Write each PR-body paragraph on one physical line; do not copy hard-wrapped
+README text into GitHub comments.
 
 Respect the current task's authorization. Preparing changes does not authorize
 committing, pushing, publishing, or operating equipment. An action already

@@ -5,6 +5,7 @@ from pathlib import Path
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 import urllib.error
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'templates/agents/sync-engineering.py'
@@ -58,6 +59,7 @@ class RefreshTests(unittest.TestCase):
         self.project = Path(self.temp.name)
         self.cache = self.project / '.origin89/engineering'
         self.discovery = self.project / '.agents/skills'
+        self.claude = self.project / '.claude/skills'
 
     def install(self, remote=None):
         return sync.refresh(self.project, remote or Remote())
@@ -75,6 +77,8 @@ class RefreshTests(unittest.TestCase):
         for name in BASE:
             self.assertTrue((self.discovery / name).is_symlink())
             self.assertIn('Do the work.', (self.discovery / name / 'SKILL.md').read_text())
+            self.assertTrue((self.claude / name).is_symlink())
+            self.assertEqual((self.discovery / name).resolve(), (self.claude / name).resolve())
         self.assert_current(A)
 
     def test_canonical_skill_bundle_installs_with_complete_references(self):
@@ -106,6 +110,7 @@ class RefreshTests(unittest.TestCase):
         self.install(Remote(B, archive(suffix='Updated.')))
         self.assertNotIn('Updated.', (Path(old['path']) / 'skills/origin89-working/SKILL.md').read_text())
         self.assertIn('Updated.', (self.discovery / 'origin89-working/SKILL.md').read_text())
+        self.assertIn('Updated.', (self.claude / 'origin89-working/SKILL.md').read_text())
         self.assert_current(B)
 
     def test_removed_upstream_skill_removes_only_managed_link(self):
@@ -115,6 +120,7 @@ class RefreshTests(unittest.TestCase):
         (local / 'SKILL.md').write_text('Local rules')
         self.install(Remote(B))
         self.assertFalse((self.discovery / 'origin89-rust').is_symlink())
+        self.assertFalse((self.claude / 'origin89-rust').is_symlink())
         self.assertEqual((local / 'SKILL.md').read_text(), 'Local rules')
         self.assert_current(B)
 
@@ -129,6 +135,109 @@ class RefreshTests(unittest.TestCase):
         self.install()
         state = sync.refresh(self.project, lambda _: self.fail('network used'), offline=True)
         self.assertEqual(state['cached'], 'offline requested')
+
+    def test_existing_cache_gains_claude_discovery_offline(self):
+        self.install()
+        for link in self.claude.iterdir():
+            link.unlink()
+        self.claude.rmdir()
+        self.claude.parent.rmdir()
+        sync.refresh(self.project, lambda _: self.fail('network used'), offline=True)
+        for name in BASE:
+            self.assertEqual((self.claude / name).resolve(), (self.discovery / name).resolve())
+        self.assert_current(A)
+
+    def test_claude_conflict_keeps_snapshot_and_both_discovery_sets(self):
+        self.install()
+        local = self.claude / 'origin89-rust'
+        local.mkdir()
+        (local / 'SKILL.md').write_text('Local rules')
+        with self.assertRaisesRegex(ValueError, 'local skill files'):
+            self.install(Remote(B, archive(BASE + ('origin89-rust',))))
+        self.assertFalse((self.discovery / 'origin89-rust').exists())
+        self.assertEqual((local / 'SKILL.md').read_text(), 'Local rules')
+        self.assert_current(A)
+
+    def test_failed_activation_preserves_discovery_and_can_retry(self):
+        for installed in (False, True):
+            for failure in ('claude', 'next', 'current'):
+                with self.subTest(installed=installed, failure=failure), tempfile.TemporaryDirectory() as scratch:
+                    project = Path(scratch).resolve()
+                    cache = project / '.origin89/engineering'
+                    if installed:
+                        sync.refresh(project, Remote())
+                    discoveries = [project / assistant / 'skills' for assistant in ('.agents', '.claude')]
+                    for discovery in discoveries:
+                        local = discovery / 'board-specific'
+                        local.mkdir(parents=True)
+                        (local / 'SKILL.md').write_text('Local rules')
+                    before = [{p.name: p.readlink() for p in d.iterdir() if p.is_symlink()}
+                              for d in discoveries]
+                    symlink_to, replace = Path.symlink_to, sync.os.replace
+
+                    def fail_symlink(path, target, **kwargs):
+                        if ((failure == 'claude' and path == discoveries[1] / 'origin89-rust')
+                                or (failure == 'next' and path == cache / 'next')):
+                            raise PermissionError('injected activation failure')
+                        return symlink_to(path, target, **kwargs)
+
+                    def fail_replace(source, destination):
+                        if failure == 'current' and destination == cache / 'current':
+                            raise PermissionError('injected activation failure')
+                        return replace(source, destination)
+
+                    remote = Remote(B, archive(BASE + ('origin89-rust',), suffix='Updated.'))
+                    with mock.patch.object(Path, 'symlink_to', fail_symlink), mock.patch.object(sync.os, 'replace', fail_replace):
+                        with self.assertRaisesRegex(PermissionError, 'injected activation failure'):
+                            sync.refresh(project, remote)
+                    for discovery, original in zip(discoveries, before):
+                        self.assertEqual({p.name: p.readlink() for p in discovery.iterdir() if p.is_symlink()}, original)
+                        self.assertEqual((discovery / 'board-specific/SKILL.md').read_text(), 'Local rules')
+                        for name in original:
+                            self.assertNotIn('Updated.', (discovery / name / 'SKILL.md').read_text())
+                    if installed:
+                        self.assertEqual((cache / 'current').readlink().as_posix(), f'versions/{A}')
+                    else:
+                        self.assertFalse((cache / 'current').is_symlink())
+                    self.assertFalse((cache / 'next').is_symlink())
+                    self.assertFalse((cache / 'sync.lock').exists())
+                    sync.refresh(project, remote)
+                    self.assertEqual((cache / 'current').readlink().as_posix(), f'versions/{B}')
+                    for discovery in discoveries:
+                        self.assertIn('Updated.', (discovery / 'origin89-rust/SKILL.md').read_text())
+
+    def test_claude_custom_link_is_not_replaced(self):
+        self.claude.mkdir(parents=True)
+        link = self.claude / BASE[0]
+        link.symlink_to('../../../custom')
+        with self.assertRaisesRegex(ValueError, 'custom skill link'):
+            self.install()
+        self.assertEqual(str(link.readlink()), '../../../custom')
+        self.assertFalse((self.discovery / BASE[0]).is_symlink())
+
+    def test_claude_local_skills_survive_update_and_removal(self):
+        self.install(Remote(data=archive(BASE + ('origin89-rust',))))
+        local = self.claude / 'board-specific'
+        local.mkdir()
+        (local / 'SKILL.md').write_text('Local rules')
+        self.install(Remote(B))
+        self.assertFalse((self.claude / 'origin89-rust').is_symlink())
+        self.assertEqual((local / 'SKILL.md').read_text(), 'Local rules')
+        self.assert_current(B)
+
+    def test_redirected_claude_discovery_is_rejected_before_activation(self):
+        for location in ('.claude', '.claude/skills'):
+            with self.subTest(location=location), tempfile.TemporaryDirectory() as scratch:
+                project = Path(scratch)
+                link = project / location
+                link.parent.mkdir(exist_ok=True)
+                outside = project / 'outside'
+                outside.mkdir()
+                link.symlink_to(outside, target_is_directory=True)
+                with self.assertRaisesRegex(ValueError, 'normal directory'):
+                    sync.refresh(project, Remote())
+                self.assertEqual(list(outside.iterdir()), [])
+                self.assertFalse((project / '.agents/skills' / BASE[0]).is_symlink())
 
     def test_offline_first_use_fails_cleanly(self):
         with self.assertRaisesRegex(ValueError, 'No cached'):
