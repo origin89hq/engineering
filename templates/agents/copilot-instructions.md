@@ -14,6 +14,6 @@ cache exists in the hosted review. A link is not evidence that a file was read.
 Review the requested head and its callers. Report a reproducible trigger,
 consequence, and precise code location. Do not invent findings, duplicate an
 existing finding without new evidence, or treat a CI pass as proof of safety.
-Use CI for formatting and metadata checks. Keep review comments concise, with
+Leave formatting to the configured linters. Keep review comments concise, with
 one physical line per paragraph. A review request authorizes findings, not code
 changes or publication.

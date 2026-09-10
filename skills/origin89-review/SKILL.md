@@ -57,7 +57,7 @@ Before reporting a defect, verify its trigger and consequence, search for a guar
 elsewhere, and inspect the existing tests. Distinguish demonstrated issues from
 unverified concerns. Do not manufacture findings or block on personal style.
 For a standards violation, identify the applicable rule and explain its concrete
-effect. Leave deterministic formatting and commit-metadata checks to CI.
+effect. Leave formatting to the configured linters.
 
 ## Deliver actionable findings
 

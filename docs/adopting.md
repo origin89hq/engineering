@@ -79,42 +79,10 @@ Adopt [brand integration](brand.md) for branded surfaces. Verify the published
 package, pin it with pnpm, and validate imports or generated copies in a production
 build. A brand checkout or unpublished release is not a production dependency.
 
-## Contribution metadata checks
+## AI code review
 
 For Claude workflow templates and native Codex/Copilot review instructions, see
-the [AI review setup](code-review.md). Keep that setup separate from the
-deterministic metadata check below.
-
-Copy `templates/workflows/origin89-contribution.yml` into `.github/workflows/`.
-Replace `$default-branch` with the target branch and `$engineering-commit` with
-the full reviewed engineering commit SHA. The shared action checks conventional
-PR titles and commit subjects, common attribution footers, and hard-wrapped
-prose paragraphs. The shared skill recommends
-`<name-or-nickname>/<what-you-are-working-on>` branches. Personal prefixes have
-no shared default: the checker cannot infer a contributor's preferred nickname.
-To enforce an agreed prefix, configure both `branch-owner` (the GitHub login)
-and `branch-prefix` (the name or nickname followed by `/`) in the consuming
-workflow. Without that configuration, branch names are not checked. Other
-contributors' branch names are unaffected by an individual's configuration.
-
-The workflow runs on PR metadata events using read-only permissions. It needs
-Python 3 and GitHub CLI, both present on GitHub-hosted Ubuntu runners. It reads
-PR metadata through the API and runs the pinned action; never add a checkout or
-execution of PR-head code to this `pull_request_target` workflow. See
-[GitHub's event documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target).
-
-Merge the shared action before its adoption PRs. The metadata workflow becomes
-active when installed on the default branch. Verify a run before making its
-`contribution` check required where repository protection is available. Until
-then, a failed run is visible but does not prevent merging. Existing application
-checks stay required. Update the action pin through reviewed dependency PRs.
-
-This checks formatting, not whether a user authorized a push or whether a PR's
-claims are true. Review those against the task and actual validation. Markdown
-lists, tables, quotes, code examples, and intentional line breaks are allowed;
-the prose check is not a complete Markdown parser. An incomplete commit response
-or a changed head fails the check instead of reporting a partial pass. GitHub's
-PR commit endpoint returns at most 250 commits; split larger PRs before review.
+the [AI review setup](code-review.md).
 
 ## Biome and just
 

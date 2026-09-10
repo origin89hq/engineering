@@ -49,4 +49,4 @@ jobs:
             Give any review subagents these paths and the same review scope. For a standards finding, identify the applicable rule and explain the concrete consequence.
             This workflow authorizes review comments only. Do not edit code, commit, push, approve, merge, deploy, publish, or operate equipment.
             The test toolchain is not installed here. Inspect CI results for the actual PR head, and distinguish passed, failed, pending, and unavailable checks. Do not run the project's checks or claim unperformed validation.
-            Do not repeat existing findings unless new evidence changes them. Leave formatting and commit-metadata checks to CI. Write each comment paragraph on one physical line."
+            Do not repeat existing findings unless new evidence changes them. Leave formatting to the configured linters. Write each comment paragraph on one physical line."

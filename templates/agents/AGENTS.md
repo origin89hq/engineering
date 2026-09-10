@@ -39,5 +39,5 @@ review against the rules below and disclose that limit.
   Strings at text boundaries are expected; flag strings that discard useful
   invariants or leave invalid domain states representable.
 - Report the trigger, consequence, and precise location. Distinguish checks run
-  from missing evidence. Leave formatting and metadata to CI, and avoid duplicate
-  or speculative findings. A review request does not authorize implementation.
+  from missing evidence. Leave formatting to the configured linters, and avoid
+  duplicate or speculative findings. A review request does not authorize implementation.

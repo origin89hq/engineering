@@ -90,10 +90,6 @@ conventional subject rules apply to PR titles because they become squash commits
 Write each PR-body paragraph on one physical line; do not copy hard-wrapped
 README text into GitHub comments.
 
-The [adoption guide](docs/adopting.md#contribution-metadata-checks) describes the
-shared metadata check. It checks mechanical rules; it cannot establish task
-authorization or replace review of the change and its evidence.
-
 Respect the current task's authorization. Preparing changes does not authorize
 committing, pushing, publishing, or operating equipment. An action already
 authorized within the task does not need repeated confirmation.
