@@ -38,8 +38,8 @@ instruction to leave work uncommitted or unpushed in force until changed.
   `refactor:`, or `chore:`. Add a scope only when it makes the subject clearer.
 - Prefer a subject alone. Add a short body only to explain a reason or constraint
   that the diff and subject cannot convey. Put detailed validation in the PR.
-- Never add attribution to the message: no `Co-authored-by`, generated-by
-  trailers, assistant signatures, AI/tool credits, or similar footers.
+- Follow [no assistant references](#no-assistant-references) for all commit
+  and PR text, including titles, bodies, and comments.
 - Use the configured Git author and signing settings. The message rule does not
   change authorship metadata or require rewriting existing commits.
 - Use these same rules for the PR title: squash merges use it as the commit
@@ -53,6 +53,18 @@ fix: sync brand manifest version
 feat: add Buddy scout pose
 docs: add shared release guidance
 ```
+
+## No assistant references
+
+Never include Claude, Codex, or other AI assistant references in commit subjects
+or bodies, PR titles or descriptions, or PR comments. This includes assistant
+names, session or chat URLs (such as `claude.ai/code/session_*`), transcript
+links, badges, signatures, `Co-authored-by` or generated-by footers, and claims
+that an assistant wrote, implemented, tested, reviewed, or completed the work.
+Describe the change and its evidence directly, without claiming assistant credit.
+
+Apply this rule to text supplied by tools, templates, and copied drafts as well
+as text you write. Inspect the final content before publishing.
 
 ## Preparing the commit
 
@@ -86,9 +98,10 @@ paragraphs and preserve intentional Markdown lists, tables, and code blocks.
 Commit body wrapping and repository Markdown formatting follow their own rules.
 
 Pass multiline bodies through a file or structured API, then read back the
-published title and body to verify their content. Keep AI/tool attribution out
-of PR descriptions as well as commits. If a later commit changes behavior or
-validation, update the PR around its final state.
+published title and body to verify their content and the no-assistant-references
+rule. If tooling appended a forbidden reference, remove it and verify the saved
+content again. If a later commit changes behavior or validation, update the PR
+around its final state.
 
 ## Follow up after opening a PR
 
