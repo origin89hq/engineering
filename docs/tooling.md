@@ -39,9 +39,9 @@ actual target; MCU firmware follows the [embedded standard](embedded.md) and
 [Embassy guidance](../skills/origin89-embassy/SKILL.md).
 
 Reuse the [shared brand assets and tokens](brand.md) when adapting UI components.
-Check offline behavior explicitly for products that need it. Keep exact versions
-in manifests and lockfiles under the [dependency standard](dependencies.md), and
-update this section when our preferred choices change.
+Check offline behavior explicitly for products that need it. Follow the
+[dependency standard](dependencies.md) for manifest ranges, exact tool pins,
+and committed lockfiles. Update this section when our preferred choices change.
 
 ## A consistent command interface
 
