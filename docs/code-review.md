@@ -25,6 +25,11 @@ offgrid-equipment's [mention workflow](https://github.com/origin89hq/offgrid-equ
 Copy it to `.github/workflows/claude.yml` when the repo needs explicit Claude
 requests. Preserve the existing filename when updating an installation.
 
+Mention `@claude` in a new issue or PR conversation comment, or in an issue's
+title or body when opening or assigning it. Inline review replies and submitted
+reviews do not invoke Claude. Copilot review events can require workflow approval
+before the job's mention check runs, even when nobody requested Claude.
+
 The request determines whether Claude should answer, review, or implement a fix.
 Generated branch prefixes use the triggering GitHub username; configure
 `branch_prefix` if an agreed nickname or another local convention applies.
