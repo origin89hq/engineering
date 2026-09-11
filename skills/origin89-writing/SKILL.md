@@ -35,9 +35,10 @@ on hardware. Never claim zero errors or certification from tests or AI review.
 For engineering results, explain what changed, why, the checks actually run, and
 material gaps. For PRs, describe the concrete problem and final behavior. For
 release notes, describe the consumer effect. Commit messages use a short imperative
-subject. Commit and PR text must contain no assistant references or claims of
-doing the work; follow [no assistant references](../origin89-commits/SKILL.md#no-assistant-references).
-Keep upstream licenses in files.
+subject. Apply [no assistant references](../origin89-commits/SKILL.md#no-assistant-references)
+to commit and PR text, with its sole exception for an explicitly requested
+review-bot command in a PR conversation comment. Attribution and claims of
+doing the work remain forbidden. Keep upstream licenses in files.
 
 Put internal RFCs, ADRs, research, and exploratory notes in `internal-research`.
 Keep product documentation only when it helps a concrete task. Avoid checkout

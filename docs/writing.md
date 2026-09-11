@@ -52,6 +52,9 @@ use, and a practical update path; automate repeated upkeep or simplify the mater
 Commit and PR text must follow the
 [no assistant references rule](../skills/origin89-commits/SKILL.md#no-assistant-references),
 including names, session links, attribution, and claims of doing the work.
+The sole exception is a review-bot command in a PR conversation comment when
+the user explicitly requests that bot invocation. It permits no attribution
+or work claims.
 Preserve required upstream license and copyright notices in source files; those
 serve a different purpose from commit-message credits.
 

@@ -56,12 +56,21 @@ docs: add shared release guidance
 
 ## No assistant references
 
-Never include Claude, Codex, or other AI assistant references in commit subjects
-or bodies, PR titles or descriptions, or PR comments. This includes assistant
-names, session or chat URLs (such as `claude.ai/code/session_*`), transcript
-links, badges, signatures, `Co-authored-by` or generated-by footers, and claims
-that an assistant wrote, implemented, tested, reviewed, or completed the work.
-Describe the change and its evidence directly, without claiming assistant credit.
+Except for the explicitly requested review command below, never include Claude,
+Codex, or other AI assistant references in commit subjects or bodies, PR titles
+or descriptions, or PR comments. This includes assistant names, session or chat
+URLs (such as `claude.ai/code/session_*`), transcript links, badges, signatures,
+`Co-authored-by` or generated-by footers, and claims that an assistant wrote,
+implemented, tested, reviewed, or completed the work. Describe the change and
+its evidence directly, without claiming assistant credit.
+
+The sole exception is a review-bot command in a PR conversation comment when the
+user explicitly requests that bot invocation, such as `@claude review` or
+`@codex review`.
+Include only the bot mention and requested review instructions. Do not infer
+authorization from an installed integration, a reviewer suggestion, or this rule.
+Attribution, session links, and claims of doing the work remain forbidden in
+the command and surrounding text.
 
 Apply this rule to text supplied by tools, templates, and copied drafts as well
 as text you write. Inspect the final content before publishing.
