@@ -1,6 +1,7 @@
 ---
 name: origin89-embedded
 description: Develop or review embedded firmware, hardware designs, and device-control commands in Origin89. Use when changes can affect physical equipment, board configuration, protection, timing, or actuation; require evidence proportional to the hazard.
+license: MIT OR Apache-2.0
 ---
 
 # Origin89 embedded and hardware

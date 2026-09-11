@@ -1,6 +1,7 @@
 ---
 name: origin89-embassy
 description: Implement or review Embassy tasks, HAL adapters, peripheral ownership, linking, and firmware resource use in Origin89. Use for Embassy firmware work alongside the embedded safety skill and the consuming repository's board-specific firmware references.
+license: MIT OR Apache-2.0
 ---
 
 # Origin89 Embassy firmware

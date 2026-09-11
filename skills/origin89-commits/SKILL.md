@@ -1,6 +1,7 @@
 ---
 name: origin89-commits
 description: Prepare branches, commits, pushes, and pull requests in Origin89 repositories, including bounded background follow-up on PR reviews. Use before branch, commit, push, or PR operations and when handling feedback on a PR you opened; preserve task authorization and use short messages without attribution.
+license: Apache-2.0
 ---
 
 # Origin89 branches, commits, and pull requests

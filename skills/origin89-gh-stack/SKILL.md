@@ -4,6 +4,7 @@ description: Manage stacked branches and dependent pull requests with gh stack i
 metadata:
   author: github
   version: "0.1.0"
+license: MIT
 ---
 
 # Origin89 gh-stack

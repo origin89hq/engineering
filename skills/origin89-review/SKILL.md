@@ -1,6 +1,7 @@
 ---
 name: origin89-review
 description: Review Origin89 code changes for demonstrated defects, compatibility, test coverage, and safety consequences. Use for requested code reviews and final implementation review; preserve whether the task asks for findings or fixes.
+license: Apache-2.0
 ---
 
 # Origin89 review
