@@ -49,9 +49,11 @@ use, and a practical update path; automate repeated upkeep or simplify the mater
 | Release note | What changes for consumers and any required migration |
 | Technical guide | Task, prerequisites, verified steps, and failure behavior |
 
-Commit messages never include co-author or AI/tool attribution. Preserve required
-upstream license and copyright notices in source files; those serve a different
-purpose from commit-message credits.
+Commit and PR text must follow the
+[no assistant references rule](../skills/origin89-commits/SKILL.md#no-assistant-references),
+including names, session links, attribution, and claims of doing the work.
+Preserve required upstream license and copyright notices in source files; those
+serve a different purpose from commit-message credits.
 
 Before sending, remove any sentence that repeats the point without adding useful
 information. Check that the remaining claims match the evidence and that a
