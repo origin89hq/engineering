@@ -1,6 +1,6 @@
 ---
 name: origin89-commits
-description: Prepare branches, commits, pushes, and pull requests in Origin89 repositories. Use before creating a branch, committing, pushing, or drafting or editing PR metadata; preserve the task authorization and use short messages without attribution.
+description: Prepare branches, commits, pushes, and pull requests in Origin89 repositories, including bounded background follow-up on PR reviews. Use before branch, commit, push, or PR operations and when handling feedback on a PR you opened; preserve task authorization and use short messages without attribution.
 ---
 
 # Origin89 branches, commits, and pull requests
@@ -20,6 +20,10 @@ Start independent work from the current remote default branch unless the task
 selects another base. Preserve unrelated work with an isolated worktree when
 needed. Before creating a branch, check its name and base. Do not silently
 rename an existing published branch or replace an open PR to fix its name.
+
+For dependent branches and stacked PRs, also read
+[origin89-gh-stack](../origin89-gh-stack/SKILL.md). Each layer builds on its
+parent; the default-branch rule above applies to independent work.
 
 Preparing changes does not authorize a commit or push. Carry authorization
 already given in the task forward, including later corrections, and keep any
@@ -84,3 +88,24 @@ Pass multiline bodies through a file or structured API, then read back the
 published title and body to verify their content. Keep AI/tool attribution out
 of PR descriptions as well as commits. If a later commit changes behavior or
 validation, update the PR around its final state.
+
+## Follow up after opening a PR
+
+After opening a PR, arrange background follow-up for its reviews and address
+actionable feedback within the original task. Read
+[PR review follow-up](references/pr-review-follow-up.md) before scheduling it.
+This applies to ordinary PRs and each PR created by a stack submission. Watch
+the repository's configured reviewers, including Codex, Copilot, Claude, other
+bots, and requested humans; do not stop after the first reviewer responds.
+
+Default to one check every **2 minutes**, with an absolute **30-minute deadline**
+from initial monitor creation. Respect an explicit user duration. Fixes, pushes,
+retries, and task resumptions do not reset that deadline. Use a managed scheduler
+that can wake the agent and stop the follow-up. End the foreground turn once
+the monitor is confirmed; never occupy it with sleeps or polling loops.
+
+Report the PR URL and expiry time when monitoring starts. Stop and clean up on
+completion, closure, merge, cancellation, timeout, or a blocker requiring user
+action. If the runtime cannot provide bounded background follow-up, say it was
+not started and return the PR's current state. Keep explicit restrictions on
+fixes, commits, pushes, and posting; this rule does not authorize merging.

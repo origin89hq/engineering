@@ -23,6 +23,10 @@ A review request authorizes inspection and relevant checks. Make edits only when
 fixing is part of the task. Do not commit, push, or post a review without that
 authorization; preserve any authorization already given.
 
+When handling feedback on a PR you opened, follow the
+[author's background review workflow](../origin89-commits/references/pr-review-follow-up.md).
+That authoring task can include fixes; it does not expand a review-only task.
+
 For a PR, establish the current head and base before using CI results or earlier
 comments as evidence. Read applicable `Code Review Rules` in `AGENTS.md`. Use
 the shared skills actually available in the task; if the hosted reviewer lacks
