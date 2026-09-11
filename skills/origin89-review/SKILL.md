@@ -10,6 +10,10 @@ Adapted from Sentry's code-review and find-bugs skills for Origin89. See
 
 ## Establish the review scope
 
+Use the existing Codex and Copilot integrations for automatic PR reviews.
+Keep Claude reviews limited to explicit requests; do not add or re-enable an
+automatic Claude review workflow.
+
 Read the requested diff, including untracked or staged work when relevant. Verify
 the comparison base instead of assuming a branch name. If output is truncated,
 read the missing portions before drawing a conclusion. Inspect callers, contracts,

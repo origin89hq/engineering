@@ -1,5 +1,9 @@
 # Configure AI code reviews
 
+Use the existing Codex and Copilot integrations for automatic PR reviews.
+Claude runs only on an explicit `@claude` request; do not install an automatic
+Claude review workflow.
+
 Keep detailed review criteria in [origin89-review](../skills/origin89-review/SKILL.md)
 and the domain skills. Give each reviewer its native entry point, plus a few
 local rules about behavior that is easy to misunderstand. Review instructions
@@ -7,51 +11,48 @@ guide findings; CI and repository protection enforce merge requirements.
 
 | Reviewer | Entry point | Shared guidance |
 | --- | --- | --- |
-| Claude | `CLAUDE.md` and the workflow prompt | Each workflow checks out engineering's `main` skills before starting |
 | Codex | `Code Review Rules` in root or scoped `AGENTS.md` | Use available shared skills; keep essential local rules in `AGENTS.md` |
 | Copilot | `.github/copilot-instructions.md` and root `AGENTS.md` | Use available shared skills; keep essential local rules in the native files |
 
-Claude's checkout resolves one revision per job, so skill changes reach its next
-review after merging to engineering's `main`. Workflow templates and native
-instruction files remain installed configuration: update them through consumer
-PRs. Codex and Copilot use their existing review integrations; an ignored skill
-cache on a developer's machine is not present in a fresh hosted review.
+Native instruction files remain installed configuration: update them through
+consumer PRs. An ignored skill cache on a developer's machine is not present
+in a fresh hosted review.
 
-## Claude workflows
+## Optional `@claude` requests
 
-Adapted from offgrid-equipment's
-[mention workflow](https://github.com/origin89hq/offgrid-equipment/blob/main/.github/workflows/claude.yml)
-and [automatic review workflow](https://github.com/origin89hq/offgrid-equipment/blob/main/.github/workflows/claude-code-review.yml).
-Copy the matching files from `templates/workflows/` into `.github/workflows/`:
+The [mention template](../templates/workflows/claude.yml) is adapted from
+offgrid-equipment's [mention workflow](https://github.com/origin89hq/offgrid-equipment/blob/main/.github/workflows/claude.yml).
+Copy it to `.github/workflows/claude.yml` when the repo needs explicit Claude
+requests. Preserve the existing filename when updating an installation.
 
-Preserve existing workflow filenames when updating an installation; avoid
-creating a second automatic reviewer for the same events.
-
-- `claude.yml` handles `@claude` requests. The request determines whether Claude
-  should answer, review, or implement a fix. Generated branch prefixes use the
-  triggering GitHub username; configure `branch_prefix` if an agreed nickname
-  or another local convention applies.
-- `claude-code-review.yml` reviews open, non-draft PRs from branches in the same
-  repository. It loads the shared review and domain skills, retains the
-  plugin's read/comment tool grants, and cancels superseded review runs.
+The request determines whether Claude should answer, review, or implement a fix.
+Generated branch prefixes use the triggering GitHub username; configure
+`branch_prefix` if an agreed nickname or another local convention applies.
+The workflow checks out engineering's `main` skills at one revision per job,
+so merged skill changes reach the next request. It does not execute engineering's
+setup scripts. Update the installed workflow through consumer PRs.
 
 Install the Claude GitHub App for the adopting repository and configure its
 `CLAUDE_CODE_OAUTH_TOKEN` secret, or adapt authentication using
 [Anthropic's setup guide](https://github.com/anthropics/claude-code-action/blob/main/docs/setup.md).
-Neither template installs the application's dependencies or runs `just check`.
-Reviewers inspect CI for the actual PR head and report unavailable evidence.
+The template does not install application dependencies or run `just check`.
+Claude inspects CI for the actual PR head and reports unavailable evidence.
 
 The mention workflow can make changes through the App when requested. The
-automatic workflow authorizes comments only. The workflow's read permissions
-do not restrict the separately issued App token; the prompt and tool grants are
-not a replacement for token permissions. Keep the action's default write-access
-requirement and bot restrictions. The automatic template skips forks; do not
-switch to `pull_request_target` with untrusted PR code to expose secrets there.
+workflow's read permissions do not restrict the separately issued App token;
+the prompt and tool grants are not a replacement for token permissions. Keep
+the action's default write-access requirement and bot restrictions. Do not use
+`pull_request_target` with untrusted PR code to expose secrets there.
 See [Anthropic's security guidance](https://github.com/anthropics/claude-code-action/blob/main/docs/security.md).
 
-Both templates pin the action version and use the shared skills as instructions,
-without executing engineering's setup scripts. Preserve local constraints when
-adopting them, and keep publication or equipment operation out of review jobs.
+The template pins the action version. Preserve local constraints when adopting
+it, and keep publication or equipment operation out of review jobs.
+
+To retire an existing automatic reviewer, disable its workflow with
+`gh workflow disable claude-code-review.yml --repo owner/repo`, replacing the
+repository and filename as needed. Cancel any unfinished runs, remove the file
+through a PR, and check pending PRs for copies that could restore it. Keep the
+mention workflow and local Claude instructions available for explicit requests.
 
 ## Codex
 
@@ -86,9 +87,9 @@ See [Copilot review configuration](https://docs.github.com/en/copilot/how-tos/us
 
 ## Validate an adoption
 
-Run actionlint on the installed workflows and check their secret names and
-permissions. Exercise checkout/setup steps without a model call first. Then use
-a representative PR to verify that the selected reviewer reads the expected
-rules, reports a real contract violation, and leaves an intentional pattern
-alone. Syntax checks do not establish review quality. Enabling automatic reviews
-or requesting a live review uses the configured account's review allowance.
+Check native instruction files and any installed mention workflow. Run actionlint
+on workflow changes, check secret names and permissions, and exercise checkout
+steps without a model call first. Use a representative PR to verify that Codex
+and Copilot read the expected rules, report a real contract violation, and leave
+an intentional pattern alone. Syntax checks do not establish review quality.
+Live reviews and explicit Claude requests use the configured account's allowance.
