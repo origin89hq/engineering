@@ -94,9 +94,11 @@ validation, update the PR around its final state.
 After opening a PR, arrange background follow-up for its reviews and address
 actionable feedback within the original task. Read
 [PR review follow-up](references/pr-review-follow-up.md) before scheduling it.
-This applies to ordinary PRs and each PR created by a stack submission. Watch
-the repository's configured reviewers, including Codex, Copilot, Claude, other
-bots, and requested humans; do not stop after the first reviewer responds.
+This applies to ordinary PRs and each PR created by a stack submission. Track
+reviews explicitly requested for the PR or whose automatic trigger applies to
+it, including Codex, Copilot, other bots, and requested humans. An installed
+mention-only integration such as Claude is expected only when invoked for this
+PR. Do not stop after the first expected reviewer responds.
 
 Default to one check every **2 minutes**, with an absolute **30-minute deadline**
 from initial monitor creation. Respect an explicit user duration. Fixes, pushes,

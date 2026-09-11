@@ -9,8 +9,12 @@ original scope. Follow [commit rules](../SKILL.md) and validate findings with
 
 1. Verify the repository, PR URL and number, head branch and SHA, and whether
    it is open. Read current reviews, inline threads, conversation comments,
-   requested reviewers, and review-related checks. Discover expected reviewers
-   from repository configuration and the PR; Codex and Copilot are examples,
+   requested reviewers, and review-related checks. Expect reviewers explicitly
+   requested for this PR or whose configured automatic trigger applies to its
+   event and state, even if their run has not appeared yet. Installation alone
+   does not make a reviewer expected: exclude unrequested mention-only
+   integrations such as Claude and automatic rules that do not apply to this
+   PR, such as reviews disabled for drafts. Codex and Copilot are examples,
    not an exhaustive list. Do not request extra reviews, post bot mentions,
    or mark a draft ready merely to start a reviewer unless authorized.
 2. Find an existing monitor for this repository and PR before creating one.
@@ -48,10 +52,13 @@ reviewers, and relevant checks. Use paginated reads where needed. A checks-only
 watch misses feedback delivered as comments. Do not infer review completion
 from a green build, an empty request list, or silence from a reviewer.
 
-Track each expected reviewer separately. A reviewer that is disabled, skipped,
-unavailable, or not triggered for a draft is not a completed clean review.
-If completion cannot be established, leave it pending until the deadline or
-report a known blocker. Read newly arriving feedback from other reviewers too.
+Track each expected reviewer separately and re-evaluate applicability when the
+PR's state or review requests change. Exclude inapplicable reviewers from the
+completion gate without counting them as clean reviews. For an expected
+reviewer, report an explicit skip, quota failure, or unavailable service as a
+blocker. When its completion cannot be established, leave it pending until the
+deadline or report the known blocker. Read newly arriving feedback from other
+reviewers too and track those reviews once they appear.
 An older review can still identify a current bug, but it does not establish
 that the current head was reviewed. Recheck findings against current code and
 invalidate completion evidence for heads changed by a fix or rebase.

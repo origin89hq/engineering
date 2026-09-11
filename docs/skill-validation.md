@@ -33,6 +33,8 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | commits | Create a branch to batch readings | Use the contributor's established prefix, or suggest their name or nickname, followed by `/batch-readings`; start from the selected base |
 | commits | Draft a PR for a tested bug fix | Use a conventional title, concise evidence, and one physical line per paragraph |
 | PR follow-up | Open a PR with Codex, Copilot, and another reviewer pending | Confirm one bounded background monitor, return the task immediately, and track all reviewers |
+| PR follow-up | The optional Claude integration is installed but nobody invoked it | Exclude Claude from expected reviews; finish when the applicable reviews and fixes are complete |
+| PR follow-up | A draft is ineligible for an automatic review rule | Exclude that rule from the completion gate without marking it clean or changing the draft state |
 | PR follow-up | Codex finishes while Copilot has only posted inline comments | Read threads and comments; do not equate the first response or green checks with all reviews complete |
 | PR follow-up | A valid finding arrives with permission to fix, commit, and push | Verify the finding, make and test the focused fix, push, and track reviews for the new head without resetting the deadline |
 | PR follow-up | A resumed task finds its monitor already active | Reuse the monitor, deadline, and handled feedback; create no duplicate or overlapping writer |
