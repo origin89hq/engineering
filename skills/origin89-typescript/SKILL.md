@@ -1,6 +1,7 @@
 ---
 name: origin89-typescript
 description: Implement, debug, or review Node and TypeScript code in Origin89 with pnpm, strict types, boundary validation, and behavior tests. Use for JavaScript package tooling and TypeScript application or library changes.
+license: MIT OR Apache-2.0
 ---
 
 # Origin89 Node and TypeScript

@@ -1,6 +1,7 @@
 ---
 name: origin89-rust
 description: Implement, refactor, debug, or review Rust in Origin89 repositories with explicit contracts, reliable errors, and targeted verification. Covers host Rust and no_std constraints; use the embedded skill as well for physical control or hardware work.
+license: MIT OR Apache-2.0
 ---
 
 # Origin89 Rust

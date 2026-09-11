@@ -60,3 +60,14 @@ organization profile and community defaults. GitHub's workflow picker reads that
 repository's `workflow-templates/`; templates here need explicit adoption or a
 reviewed mirror. Each adopting repository configures CI and review to enforce
 these standards.
+
+## License
+
+Unless otherwise noted, Origin89-authored code, documentation, templates, and
+skills are licensed under either [MIT](LICENSE-MIT) or
+[Apache-2.0](LICENSE-APACHE), at your option (`MIT OR Apache-2.0`).
+
+Adapted skills retain the licenses and notices in their own directories; those
+terms take precedence over the repository default. Each skill includes its
+applicable license text so it can be copied independently. Preserve the license
+files and any upstream notices when redistributing material from this repository.

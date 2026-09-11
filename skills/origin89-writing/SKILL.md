@@ -1,6 +1,7 @@
 ---
 name: origin89-writing
 description: Write or edit all Origin89 AI-authored documentation, comments, commit messages, PRs, release notes, and conversation messages in clear, specific language without AI filler. Apply a quiet editing pass before delivery, including routine updates.
+license: Apache-2.0
 ---
 
 # Origin89 writing

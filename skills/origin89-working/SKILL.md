@@ -1,6 +1,7 @@
 ---
 name: origin89-working
 description: Apply Origin89 working standards at the start of every repository task, including maintenance cost, documentation placement, workspace structure, tooling, tests, and authorization. Read this baseline before selecting domain skills.
+license: MIT OR Apache-2.0
 ---
 
 # Origin89 working rules

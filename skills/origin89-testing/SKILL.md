@@ -1,6 +1,7 @@
 ---
 name: origin89-testing
 description: Design, add, or review behavior tests for Origin89 changes. Use for feature and bug implementation, test requests, and coverage review; cover distinct success, invalid-input, boundary, and failure paths without inflating trivial test counts.
+license: MIT OR Apache-2.0
 ---
 
 # Origin89 testing

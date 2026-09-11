@@ -1,6 +1,7 @@
 ---
 name: origin89-brand
 description: Integrate or update the Origin89 brand package in product interfaces, websites, documentation sites, native apps, and branded exports. Use shared tokens, fonts, logos, and Buddy assets with versioned provenance; create new identity assets in the brand repository.
+license: MIT OR Apache-2.0
 ---
 
 # Origin89 brand integration
