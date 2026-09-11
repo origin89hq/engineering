@@ -14,7 +14,7 @@ Start with [contributing](CONTRIBUTING.md) and the [adoption guide](docs/adoptin
 | [AI review setup](docs/code-review.md) | Codex and Copilot reviews, with optional `@claude` requests |
 | [Rust](docs/rust.md) | Typed domain models, ownership, errors, unsafe code, verification |
 | [Node and TypeScript](docs/typescript.md) | pnpm, strict types, runtime validation, async behavior |
-| [Tooling](docs/tooling.md) | just recipes, pnpm, Biome, and existing domain tools |
+| [Tooling](docs/tooling.md) | Preferred stack for web, native, and firmware work; repository commands |
 | [Testing](docs/testing.md) | 3–4 distinct paths, regressions, integration, fault testing |
 | [Dependencies](docs/dependencies.md) | Verified latest stable versions, compatibility, lockfiles |
 | [Embedded and hardware](docs/embedded.md) | Hazards, control ownership, physical evidence, release gates |
