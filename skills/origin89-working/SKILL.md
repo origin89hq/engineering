@@ -84,6 +84,10 @@ and PR titles, and no attribution. Preserve legal notices and Git identity.
 Respect the task's commit, push, publish, and equipment authorization; do not ask
 again for an action already authorized.
 
+For stacked branches or dependent PRs, also read
+[gh-stack](../origin89-gh-stack/SKILL.md). It covers layer placement,
+non-interactive commands, and stack recovery within the current task scope.
+
 Read the relevant sibling skill for [Rust](../origin89-rust/SKILL.md),
 [TypeScript](../origin89-typescript/SKILL.md), [testing](../origin89-testing/SKILL.md),
 [review](../origin89-review/SKILL.md), [embedded/hardware](../origin89-embedded/SKILL.md),

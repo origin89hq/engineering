@@ -27,7 +27,8 @@ Start with [contributing](CONTRIBUTING.md) and the [adoption guide](docs/adoptin
 | Skill | Use for |
 | --- | --- |
 | [origin89-working](skills/origin89-working/SKILL.md) | Baseline for every task |
-| [origin89-commits](skills/origin89-commits/SKILL.md) | Short commit messages without attribution trailers |
+| [origin89-commits](skills/origin89-commits/SKILL.md) | Branches, commits, PRs, and bounded background review follow-up |
+| [origin89-gh-stack](skills/origin89-gh-stack/SKILL.md) | Stacked branches and dependent pull requests with gh stack |
 | [origin89-review](skills/origin89-review/SKILL.md) | Concrete defects, compatibility, test and safety evidence |
 | [origin89-testing](skills/origin89-testing/SKILL.md) | Tests for distinct behavior and failure paths |
 | [origin89-rust](skills/origin89-rust/SKILL.md) | Rust implementation and review |
@@ -51,7 +52,7 @@ and deployed applications keep their own publication mechanisms.
 
 Run `just check` for the refresh bootstrap's offline behavioral tests. See
 [skill validation](docs/skill-validation.md) for instruction review scenarios.
-Sentry-derived skills retain their upstream notices and licenses. Internal RFCs
+Upstream-derived skills retain their notices and licenses. Internal RFCs
 and research belong in [internal-research](https://github.com/origin89hq/internal-research).
 
 [origin89hq/.github](https://github.com/origin89hq/.github) holds the

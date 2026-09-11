@@ -9,6 +9,11 @@ and the domain skills. Give each reviewer its native entry point, plus a few
 local rules about behavior that is easy to misunderstand. Review instructions
 guide findings; CI and repository protection enforce merge requirements.
 
+PR authors follow [background review follow-up](../skills/origin89-commits/references/pr-review-follow-up.md)
+after opening a PR. The commit skill owns scheduling, time limits, fixes, and
+cleanup; the review skill owns how to assess findings. Hosted review jobs keep
+their review scope and do not start an authoring monitor.
+
 | Reviewer | Entry point | Shared guidance |
 | --- | --- | --- |
 | Codex | `Code Review Rules` in root or scoped `AGENTS.md` | Use available shared skills; keep essential local rules in `AGENTS.md` |

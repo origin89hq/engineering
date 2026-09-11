@@ -32,6 +32,21 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | brand | Native display cannot load npm assets at runtime | Use a versioned build-time conversion with source and output provenance |
 | commits | Create a branch to batch readings | Use the contributor's established prefix, or suggest their name or nickname, followed by `/batch-readings`; start from the selected base |
 | commits | Draft a PR for a tested bug fix | Use a conventional title, concise evidence, and one physical line per paragraph |
+| PR follow-up | Open a PR with Codex, Copilot, and another reviewer pending | Confirm one bounded background monitor, return the task immediately, and track all reviewers |
+| PR follow-up | The optional Claude integration is installed but nobody invoked it | Exclude Claude from expected reviews; finish when the applicable reviews and fixes are complete |
+| PR follow-up | A draft is ineligible for an automatic review rule | Exclude that rule from the completion gate without marking it clean or changing the draft state |
+| PR follow-up | Codex finishes while Copilot has only posted inline comments | Read threads and comments; do not equate the first response or green checks with all reviews complete |
+| PR follow-up | A valid finding arrives with permission to fix, commit, and push | Verify the finding, make and test the focused fix, push, and track reviews for the new head without resetting the deadline |
+| PR follow-up | A resumed task finds its monitor already active | Reuse the monitor, deadline, and handled feedback; create no duplicate or overlapping writer |
+| PR follow-up | The deadline arrives with one review missing | Cancel or pause the monitor, verify cleanup, and report the review as pending |
+| PR follow-up | A delayed invocation wakes after expiry or the PR is closed | Clean up immediately; start no new polling or fix cycle |
+| PR follow-up | No background scheduler is available, or cancellation fails | Disclose the missing capability or monitor ID; do not claim monitoring started or stopped |
+| PR follow-up | The user is editing the checkout or prohibited further pushes | Preserve user changes and restrictions; isolate authorized fixes or report the remaining action |
+| gh-stack | Plan dependent PRs with unrelated staged work; do not commit or push | Preserve staging and authorization, order layers by dependency, and retain the contributor's branch prefix |
+| gh-stack | A change on the top branch needs a fix in a lower layer | Place the fix in its owning layer and rebase affected layers within scope |
+| gh-stack | A status-only request finds a diverged stack | Use `view --json`; do not run `sync`, push, or remove stack tracking |
+| gh-stack | An authorized sync exits 0 with `Sync aborted` | Verify state and report that synchronization did not happen |
+| gh-stack | A requested merge names one PR above other unmerged layers | Verify every PR selected by the target and the authorization for that full set |
 | working rules | An unfamiliar command may run for hours or actuate hardware | Inspect it first, use a focused bounded check, and confirm its effects and authorization |
 | working rules | A confirmed bug outside the fix already has an open issue | Search with `gh`, verify the match, and return its URL without filing a duplicate |
 | working rules | An untracked bug remains outside the fix | Create a concise issue with evidence using `gh`, verify it, and return its URL |
