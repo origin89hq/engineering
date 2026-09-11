@@ -75,6 +75,18 @@ tools automatically inside recipes. Quote parameters and avoid interpolating
 untrusted data into shell fragments. Keep timeouts and long-job handling aligned
 with the [working rules](development.md).
 
+## CI triggers
+
+Run validation workflows on `pull_request` and on `push` filtered to the
+repository's default branch. An unfiltered `push` alongside `pull_request`
+starts two runs when a same-repository PR branch is updated. Check the PR before
+merge and the default branch after merge.
+
+The [package check template](../templates/workflows/origin89-check.yml) uses
+`$default-branch`; replace it with the adopting repository's default branch.
+Keep `workflow_dispatch` where release PRs need a manually requested check.
+Preserve job names used by branch protection when changing triggers.
+
 ## Biome
 
 Install a verified stable `@biomejs/biome` as an exact pnpm dev dependency.

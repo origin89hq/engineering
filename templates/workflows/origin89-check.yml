@@ -3,6 +3,7 @@ name: origin89-check
 
 on:
   push:
+    branches: [$default-branch]
   pull_request:
   # GITHUB_TOKEN-created release PRs do not trigger pull_request workflows.
   # Select changeset-release/<default-branch> to check a generated release PR.
