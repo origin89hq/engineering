@@ -79,7 +79,7 @@ class LiveTests(unittest.TestCase):
                 report = audit.evaluate(self.cases, MODEL, audit.load_json(path), 0.8)
                 self.assertEqual(report["status_counts"]["answered"], 1)
                 self.assertEqual(report["status_counts"]["missing"], 4)
-                self.assertEqual(report["review_required"], 5)
+                self.assertEqual(report["review_required"], 6)
 
     def test_https_contract_bounded_response_and_no_redirect(self):
         for status, payload, succeeds in ((200, json.dumps(response()).encode(), True), (302, b'', False), (401, b'secret', False), (200, b' ' * (live.MAX_RESPONSE_BYTES + 1), False), (200, b'not-json', False), (200, b'{"model":1,"model":2}', False)):

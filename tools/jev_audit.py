@@ -156,7 +156,16 @@ def answer_from(response, model):
     require(isinstance(probabilities, dict) and set(probabilities) == set(LABELS), "invalid probability options")
     for probability in probabilities.values():
         number(probability, "probability", maximum=1)
-    require(math.isclose(sum(probabilities.values()), 1, abs_tol=1e-5), "probabilities must sum to one")
+    total = sum(probabilities.values())
+    # Live Jev responses can round each option to hundredths (observed total
+    # 0.99). Accept only distributions whose rounding intervals can contain
+    # a unit sum; preserve raw values instead of silently normalizing them.
+    hundredths = all(math.isclose(p * 100, round(p * 100), abs_tol=1e-8) for p in probabilities.values())
+    rounded_unit_sum = hundredths and (
+        sum(max(0, p - 0.005) for p in probabilities.values()) <= 1 + 1e-8
+        and sum(min(1, p + 0.005) for p in probabilities.values()) >= 1 - 1e-8
+    )
+    require(math.isclose(total, 1, abs_tol=1e-5) or rounded_unit_sum, "probabilities must sum to one within their rounding precision")
     require(probabilities[choice] >= max(probabilities.values()) - 1e-5, "choice is not a highest-probability option")
     return choice, confidence
 
@@ -214,7 +223,9 @@ def evaluate(cases, model, recording, threshold, input_price=None, output_price=
                     action = "needs_review"
                     if confidence >= threshold and choice != "insufficient_context":
                         action = "no_gap_indicated" if choice == "supported" else "inspect_gap"
-                    row.update(status="answered", choice=choice, confidence=confidence, correct=choice == case["expected"], action=action)
+                    probability_sum = sum(response["answers"]["coverage"]["probabilities"].values())
+                    row.update(status="answered", choice=choice, confidence=confidence, correct=choice == case["expected"], action=action,
+                               probability_sum=probability_sum, rounded_probabilities=not math.isclose(probability_sum, 1, abs_tol=1e-5))
             except Invalid as error:
                 row.update(status="invalid", reason=str(error))
                 if not has_usage:
@@ -236,6 +247,17 @@ def evaluate(cases, model, recording, threshold, input_price=None, output_price=
         "advisory_only": True, "confidence_threshold": threshold,
         "measurement": "synthetic replay; not model performance" if origin == "synthetic" else "caller-declared live recording; not independently authenticated",
         "cases": len(rows), "groups": sorted({case["group"] for case in cases}),
+        "case_annotations_sha256": digest(cases),
+        "by_group": {
+            group: {
+                "cases": sum(row["group"] == group for row in rows),
+                "answered": sum(row["group"] == group for row in answered),
+                "correct": sum(row["group"] == group and row["correct"] for row in answered),
+                "false_reassurance": sum(row["group"] == group and row["action"] == "no_gap_indicated" and row["expected"] != "supported" for row in rows),
+                "review_required": sum(row["group"] == group and row["action"] != "no_gap_indicated" for row in rows),
+            }
+            for group in sorted({case["group"] for case in cases})
+        },
         "by_case_kind": {
             kind: {
                 "cases": sum(row["kind"] == kind for row in rows),
@@ -247,7 +269,9 @@ def evaluate(cases, model, recording, threshold, input_price=None, output_price=
         "status_counts": counts, "correct": correct,
         "accuracy_of_valid_answers": correct / len(answered) if answered else None,
         "correct_fraction_of_all_cases": correct / len(rows),
-        "review_required": sum(row["action"] == "needs_review" for row in rows),
+        "review_required": sum(row["action"] != "no_gap_indicated" for row in rows),
+        "uncertain_or_failed": sum(row["action"] == "needs_review" for row in rows),
+        "flagged_gaps": sum(row["action"] == "inspect_gap" for row in rows),
         "false_reassurance": sum(row["action"] == "no_gap_indicated" and row["expected"] != "supported" for row in rows),
         "false_gap_flags": sum(row["action"] == "inspect_gap" and row["expected"] == "supported" for row in rows),
         "confusion": confusion, "known_usage": tokens, "usage_complete": usage_complete,

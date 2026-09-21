@@ -1,0 +1,765 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "registry-names-before",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053200865",
+      "expected": "partial",
+      "label_rationale": "Before: only numeric round-trip, which permits swapped names. After: independently derived name is compared too. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The generated MessageType test checks both numeric decoding and the registry name associated with each allocated opcode, so swapping the numbers of two existing named variants fails.",
+        "requirement": "Allocated message opcodes must map to the named registry row, not merely round-trip to the same number.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/protocol.toml#L15-L37",
+            "text": "\n# The two spaces where an unrecognised value is surfaced rather than refused.\n# Everything else is a closed set: an unknown value there is a message whose\n# meaning is not knowable, and the generated bindings make that a parse error.\nskip_unknown = [\"metric_kind\", \"event_kind\"]\n\n[[messages]]\nrequest = 0x00\nresponse = 0x80\nname = \"Discover\"\nauth_request = \"none\"\nauth_response = \"none\"\nstatus = \"live\"\nsince = \"1.0\"\n\n[[messages]]\nrequest = 0x01\nresponse = 0x81\nname = \"Hello\"\nauth_request = \"proof\"\nauth_response = \"rsp\"\nstatus = \"live\"\nsince = \"1.0\"\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/842161bc7f084c720183b96bb443372b8567bafe/crates/km43/tests/generated.rs#L25-L109",
+            "text": "/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/842161bc7f084c720183b96bb443372b8567bafe/crates/km43/tests/generated.rs#L303-L359",
+            "text": "struct Allocated {\n    number: u16,\n    emitted: bool,\n}\n\n/// The numbers a `[[messages]]`-shaped table allocates under `request` and\n/// `response`, emitted unless the row is gone.\nfn message_numbers(table: &str) -> Vec<Allocated> {\n    blocks(table)\n        .iter()\n        .flat_map(|m| {\n            let emitted = !is_gone(m.status());\n            [m.number(\"request\"), m.number(\"response\")]\n                .into_iter()\n                .flatten()\n                .map(move |number| Allocated { number, emitted })\n                .collect::<Vec<_>>()\n        })\n        .collect()\n}\n\n/// The numbers under one `key` of a table, emitted under `rule`.\nfn numbers(table: &str, key: &str, rule: fn(Option<&str>) -> bool) -> Vec<Allocated> {\n    blocks(table)\n        .iter()\n        .filter_map(|row| {\n            Some(Allocated {\n                number: row.number(key)?,\n                emitted: rule(row.status()),\n            })\n        })\n        .collect()\n}\n\n/// An error code is emitted only while live: a reserved code has no meaning\n/// yet, and a variant for it is a refusal a receiver could act on.\nfn live_only(status: Option<&str>) -> bool {\n    status == Some(\"live\")\n}\n\n/// An outcome or enum member is emitted unless retired or withdrawn, and a\n/// row with no status line is live.\nfn unless_gone(status: Option<&str>) -> bool {\n    !is_gone(status)\n}\n\n/// A `codes.*` row is emitted only when it carries a status and that status\n/// is not gone; a range row has neither a number nor a status.\nfn with_status_unless_gone(status: Option<&str>) -> bool {\n    status.is_some_and(|s| !is_gone(Some(s)))\n}\n\n/// Every allocated number of a closed set round-trips through its `TryFrom`,\n/// every gone number is refused, and so is the first number the table never\n/// allocated. A generator that dropped a live row, kept a retired one, or\n/// emitted a discriminant off by one is caught by whichever of the three it\n/// broke.\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/842161bc7f084c720183b96bb443372b8567bafe/crates/km43/tests/generated.rs#L360-L405",
+            "text": "macro_rules! closed_set {\n    ($test:ident, $ty:ty, $repr:ty, $rows:expr) => {\n        #[test]\n        fn $test() {\n            let rows: Vec<Allocated> = $rows;\n            assert!(\n                rows.iter().any(|r| r.emitted),\n                \"{} has no emitted row, so nothing here was compared\",\n                stringify!($ty)\n            );\n            for row in &rows {\n                let number = <$repr>::try_from(row.number).unwrap_or_else(|_| {\n                    panic!(\"{} does not fit a {}\", row.number, stringify!($repr))\n                });\n                let got = <$ty>::try_from(number);\n                if row.emitted {\n                    let variant = got.unwrap_or_else(|()| {\n                        panic!(\n                            \"{} {number:#x} is allocated and has no variant\",\n                            stringify!($ty)\n                        )\n                    });\n                    assert_eq!(\n                        variant as $repr,\n                        number,\n                        \"{} {number:#x} decodes to a variant numbered otherwise\",\n                        stringify!($ty)\n                    );\n                } else {\n                    assert!(\n                        got.is_err(),\n                        \"{} {number:#x} is gone from the registry and still decodes\",\n                        stringify!($ty)\n                    );\n                }\n            }\n            let free = first_free(rows.iter().map(|r| r.number));\n            let free = <$repr>::try_from(free).expect(\"the first free number fits the repr\");\n            assert!(\n                <$ty>::try_from(free).is_err(),\n                \"{} accepts {free:#x}, which the registry never allocated\",\n                stringify!($ty)\n            );\n        }\n    };\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/842161bc7f084c720183b96bb443372b8567bafe/crates/km43/tests/generated.rs#L407-L412",
+            "text": "closed_set!(\n    message_type_carries_every_allocated_opcode_and_refuses_the_rest,\n    MessageType,\n    u8,\n    message_numbers(\"messages\")\n);\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/842161bc7f084c720183b96bb443372b8567bafe/crates/km43/tests/generated.rs#L295-L300",
+            "text": "fn first_free(allocated: impl Iterator<Item = u16>) -> u16 {\n    let taken: Vec<u16> = allocated.collect();\n    (0..=u16::MAX)\n        .find(|n| !taken.contains(n))\n        .expect(\"a table cannot fill the whole space\")\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "registry-names-after",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053200865",
+      "expected": "supported",
+      "label_rationale": "Before: only numeric round-trip, which permits swapped names. After: independently derived name is compared too. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The generated MessageType test checks both numeric decoding and the registry name associated with each allocated opcode, so swapping the numbers of two existing named variants fails.",
+        "requirement": "Allocated message opcodes must map to the named registry row, not merely round-trip to the same number.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/protocol.toml#L15-L37",
+            "text": "\n# The two spaces where an unrecognised value is surfaced rather than refused.\n# Everything else is a closed set: an unknown value there is a message whose\n# meaning is not knowable, and the generated bindings make that a parse error.\nskip_unknown = [\"metric_kind\", \"event_kind\"]\n\n[[messages]]\nrequest = 0x00\nresponse = 0x80\nname = \"Discover\"\nauth_request = \"none\"\nauth_response = \"none\"\nstatus = \"live\"\nsince = \"1.0\"\n\n[[messages]]\nrequest = 0x01\nresponse = 0x81\nname = \"Hello\"\nauth_request = \"proof\"\nauth_response = \"rsp\"\nstatus = \"live\"\nsince = \"1.0\"\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L25-L111",
+            "text": "const REGISTRY: &str = include_str!(\"../protocol.toml\");\n\n/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L395-L408",
+            "text": "fn generated_name(name: &str) -> String {\n    name.split('(')\n        .next()\n        .unwrap_or(name)\n        .split(|c: char| !c.is_ascii_alphanumeric())\n        .filter(|w| !w.is_empty())\n        .map(|w| {\n            let mut c = w.chars();\n            c.next().map_or_else(String::new, |f| {\n                f.to_ascii_uppercase().to_string() + c.as_str()\n            })\n        })\n        .collect()\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L412-L489",
+            "text": "struct Allocated {\n    number: u16,\n    variant: Option<String>,\n}\n\n/// The numbers a `[[messages]]`-shaped table allocates under `request` and\n/// `response`, emitted unless the row is gone. A request is named for the row\n/// and its response for the row plus `response_suffix`, which is `Response`\n/// for a client message and `Ack` for a link-local one.\nfn message_numbers(table: &str, response_suffix: &str) -> Vec<Allocated> {\n    blocks(table)\n        .iter()\n        .flat_map(|m| {\n            let base = (!is_gone(m.status()))\n                .then(|| generated_name(m.field(\"name\").expect(\"a message has a name\")));\n            [(\"request\", \"\"), (\"response\", response_suffix)]\n                .into_iter()\n                .filter_map(|(key, suffix)| {\n                    Some(Allocated {\n                        number: m.number(key)?,\n                        variant: base.as_ref().map(|b| format!(\"{b}{suffix}\")),\n                    })\n                })\n                .collect::<Vec<_>>()\n        })\n        .collect()\n}\n\n/// The numbers under one `key` of a table, emitted under `rule` and named from\n/// the `named_by` column. That column is `name` everywhere but `[[errors]]`,\n/// whose variants are named for their `meaning`.\nfn numbers(\n    table: &str,\n    key: &str,\n    named_by: &str,\n    rule: fn(Option<&str>) -> bool,\n) -> Vec<Allocated> {\n    blocks(table)\n        .iter()\n        .filter_map(|row| {\n            Some(Allocated {\n                number: row.number(key)?,\n                variant: rule(row.status()).then(|| {\n                    generated_name(row.field(named_by).unwrap_or_else(|| {\n                        panic!(\"a {table} row numbered by {key} has no {named_by}\")\n                    }))\n                }),\n            })\n        })\n        .collect()\n}\n\n/// An error code is emitted only while live: a reserved code has no meaning\n/// yet, and a variant for it is a refusal a receiver could act on.\nfn live_only(status: Option<&str>) -> bool {\n    status == Some(\"live\")\n}\n\n/// An outcome or enum member is emitted unless retired or withdrawn, and a\n/// row with no status line is live.\nfn unless_gone(status: Option<&str>) -> bool {\n    !is_gone(status)\n}\n\n/// A `codes.*` row is emitted only when it carries a status and that status\n/// is not gone; a range row has neither a number nor a status.\nfn with_status_unless_gone(status: Option<&str>) -> bool {\n    status.is_some_and(|s| !is_gone(Some(s)))\n}\n\n/// Every allocated number of a closed set decodes through its `TryFrom` to the\n/// variant named for its registry row, every gone number is refused, and so is\n/// every other number the type can carry. A generator that dropped a live\n/// row, kept a retired one, or emitted a discriminant off by one is caught by\n/// whichever of the three it broke. The name is what catches two rows whose\n/// numbers were swapped: each number still decodes to a variant carrying it,\n/// so the round trip passes while every caller that writes `Hello` sends the\n/// opcode of something else.\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L490-L547",
+            "text": "macro_rules! closed_set {\n    ($test:ident, $ty:ty, $repr:ty, $rows:expr) => {\n        #[test]\n        fn $test() {\n            let rows: Vec<Allocated> = $rows;\n            assert!(\n                rows.iter().any(|r| r.variant.is_some()),\n                \"{} has no emitted row, so nothing here was compared\",\n                stringify!($ty)\n            );\n            for row in &rows {\n                let number = <$repr>::try_from(row.number).unwrap_or_else(|_| {\n                    panic!(\"{} does not fit a {}\", row.number, stringify!($repr))\n                });\n                let got = <$ty>::try_from(number);\n                if let Some(expected) = &row.variant {\n                    let variant = got.unwrap_or_else(|()| {\n                        panic!(\n                            \"{} {number:#x} is allocated and has no variant\",\n                            stringify!($ty)\n                        )\n                    });\n                    assert_eq!(\n                        variant as $repr,\n                        number,\n                        \"{} {number:#x} decodes to a variant numbered otherwise\",\n                        stringify!($ty)\n                    );\n                    assert_eq!(\n                        format!(\"{variant:?}\"),\n                        *expected,\n                        \"{} {number:#x} is {expected} in the registry\",\n                        stringify!($ty)\n                    );\n                } else {\n                    assert!(\n                        got.is_err(),\n                        \"{} {number:#x} is gone from the registry and still decodes\",\n                        stringify!($ty)\n                    );\n                }\n            }\n            // Every number the type can carry, not only the first free one: a\n            // stray arm at 0xfe passes a check that looks at 0x00.\n            let taken: std::collections::BTreeSet<u16> = rows.iter().map(|r| r.number).collect();\n            for free in <$repr>::MIN..=<$repr>::MAX {\n                if taken.contains(&u16::from(free)) {\n                    continue;\n                }\n                assert!(\n                    <$ty>::try_from(free).is_err(),\n                    \"{} accepts {free:#x}, which the registry never allocated\",\n                    stringify!($ty)\n                );\n            }\n        }\n    };\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L549-L554",
+            "text": "closed_set!(\n    message_type_carries_every_allocated_opcode_and_refuses_the_rest,\n    MessageType,\n    u8,\n    message_numbers(\"messages\", \"Response\")\n);\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "registry-unallocated-before",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053268932",
+      "expected": "partial",
+      "label_rationale": "Before: first_free probes one gap. After: the macro iterates the entire repr range and skips allocated rows. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The MessageType test checks live opcodes and refusal of every unallocated u8 value, including gaps beyond the first.",
+        "requirement": "Every unknown value in a closed set must be refused.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/protocol.toml#L15-L37",
+            "text": "\n# The two spaces where an unrecognised value is surfaced rather than refused.\n# Everything else is a closed set: an unknown value there is a message whose\n# meaning is not knowable, and the generated bindings make that a parse error.\nskip_unknown = [\"metric_kind\", \"event_kind\"]\n\n[[messages]]\nrequest = 0x00\nresponse = 0x80\nname = \"Discover\"\nauth_request = \"none\"\nauth_response = \"none\"\nstatus = \"live\"\nsince = \"1.0\"\n\n[[messages]]\nrequest = 0x01\nresponse = 0x81\nname = \"Hello\"\nauth_request = \"proof\"\nauth_response = \"rsp\"\nstatus = \"live\"\nsince = \"1.0\"\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/09040373ff69ef4f01a4d566bb18948e81b4cf78/crates/km43/tests/generated.rs#L25-L110",
+            "text": "\n/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/09040373ff69ef4f01a4d566bb18948e81b4cf78/crates/km43/tests/generated.rs#L316-L329",
+            "text": "fn generated_name(name: &str) -> String {\n    name.split('(')\n        .next()\n        .unwrap_or(name)\n        .split(|c: char| !c.is_ascii_alphanumeric())\n        .filter(|w| !w.is_empty())\n        .map(|w| {\n            let mut c = w.chars();\n            c.next().map_or_else(String::new, |f| {\n                f.to_ascii_uppercase().to_string() + c.as_str()\n            })\n        })\n        .collect()\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/09040373ff69ef4f01a4d566bb18948e81b4cf78/crates/km43/tests/generated.rs#L333-L410",
+            "text": "struct Allocated {\n    number: u16,\n    variant: Option<String>,\n}\n\n/// The numbers a `[[messages]]`-shaped table allocates under `request` and\n/// `response`, emitted unless the row is gone. A request is named for the row\n/// and its response for the row plus `response_suffix`, which is `Response`\n/// for a client message and `Ack` for a link-local one.\nfn message_numbers(table: &str, response_suffix: &str) -> Vec<Allocated> {\n    blocks(table)\n        .iter()\n        .flat_map(|m| {\n            let base = (!is_gone(m.status()))\n                .then(|| generated_name(m.field(\"name\").expect(\"a message has a name\")));\n            [(\"request\", \"\"), (\"response\", response_suffix)]\n                .into_iter()\n                .filter_map(|(key, suffix)| {\n                    Some(Allocated {\n                        number: m.number(key)?,\n                        variant: base.as_ref().map(|b| format!(\"{b}{suffix}\")),\n                    })\n                })\n                .collect::<Vec<_>>()\n        })\n        .collect()\n}\n\n/// The numbers under one `key` of a table, emitted under `rule` and named from\n/// the `named_by` column. That column is `name` everywhere but `[[errors]]`,\n/// whose variants are named for their `meaning`.\nfn numbers(\n    table: &str,\n    key: &str,\n    named_by: &str,\n    rule: fn(Option<&str>) -> bool,\n) -> Vec<Allocated> {\n    blocks(table)\n        .iter()\n        .filter_map(|row| {\n            Some(Allocated {\n                number: row.number(key)?,\n                variant: rule(row.status()).then(|| {\n                    generated_name(row.field(named_by).unwrap_or_else(|| {\n                        panic!(\"a {table} row numbered by {key} has no {named_by}\")\n                    }))\n                }),\n            })\n        })\n        .collect()\n}\n\n/// An error code is emitted only while live: a reserved code has no meaning\n/// yet, and a variant for it is a refusal a receiver could act on.\nfn live_only(status: Option<&str>) -> bool {\n    status == Some(\"live\")\n}\n\n/// An outcome or enum member is emitted unless retired or withdrawn, and a\n/// row with no status line is live.\nfn unless_gone(status: Option<&str>) -> bool {\n    !is_gone(status)\n}\n\n/// A `codes.*` row is emitted only when it carries a status and that status\n/// is not gone; a range row has neither a number nor a status.\nfn with_status_unless_gone(status: Option<&str>) -> bool {\n    status.is_some_and(|s| !is_gone(Some(s)))\n}\n\n/// Every allocated number of a closed set decodes through its `TryFrom` to the\n/// variant named for its registry row, every gone number is refused, and so is\n/// the first number the table never allocated. A generator that dropped a live\n/// row, kept a retired one, or emitted a discriminant off by one is caught by\n/// whichever of the three it broke. The name is what catches two rows whose\n/// numbers were swapped: each number still decodes to a variant carrying it,\n/// so the round trip passes while every caller that writes `Hello` sends the\n/// opcode of something else.\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/09040373ff69ef4f01a4d566bb18948e81b4cf78/crates/km43/tests/generated.rs#L411-L462",
+            "text": "macro_rules! closed_set {\n    ($test:ident, $ty:ty, $repr:ty, $rows:expr) => {\n        #[test]\n        fn $test() {\n            let rows: Vec<Allocated> = $rows;\n            assert!(\n                rows.iter().any(|r| r.variant.is_some()),\n                \"{} has no emitted row, so nothing here was compared\",\n                stringify!($ty)\n            );\n            for row in &rows {\n                let number = <$repr>::try_from(row.number).unwrap_or_else(|_| {\n                    panic!(\"{} does not fit a {}\", row.number, stringify!($repr))\n                });\n                let got = <$ty>::try_from(number);\n                if let Some(expected) = &row.variant {\n                    let variant = got.unwrap_or_else(|()| {\n                        panic!(\n                            \"{} {number:#x} is allocated and has no variant\",\n                            stringify!($ty)\n                        )\n                    });\n                    assert_eq!(\n                        variant as $repr,\n                        number,\n                        \"{} {number:#x} decodes to a variant numbered otherwise\",\n                        stringify!($ty)\n                    );\n                    assert_eq!(\n                        format!(\"{variant:?}\"),\n                        *expected,\n                        \"{} {number:#x} is {expected} in the registry\",\n                        stringify!($ty)\n                    );\n                } else {\n                    assert!(\n                        got.is_err(),\n                        \"{} {number:#x} is gone from the registry and still decodes\",\n                        stringify!($ty)\n                    );\n                }\n            }\n            let free = first_free(rows.iter().map(|r| r.number));\n            let free = <$repr>::try_from(free).expect(\"the first free number fits the repr\");\n            assert!(\n                <$ty>::try_from(free).is_err(),\n                \"{} accepts {free:#x}, which the registry never allocated\",\n                stringify!($ty)\n            );\n        }\n    };\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/09040373ff69ef4f01a4d566bb18948e81b4cf78/crates/km43/tests/generated.rs#L464-L469",
+            "text": "closed_set!(\n    message_type_carries_every_allocated_opcode_and_refuses_the_rest,\n    MessageType,\n    u8,\n    message_numbers(\"messages\", \"Response\")\n);\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/09040373ff69ef4f01a4d566bb18948e81b4cf78/crates/km43/tests/generated.rs#L304-L309",
+            "text": "fn first_free(allocated: impl Iterator<Item = u16>) -> u16 {\n    let taken: Vec<u16> = allocated.collect();\n    (0..=u16::MAX)\n        .find(|n| !taken.contains(n))\n        .expect(\"a table cannot fill the whole space\")\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "registry-unallocated-after",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053268932",
+      "expected": "supported",
+      "label_rationale": "Before: first_free probes one gap. After: the macro iterates the entire repr range and skips allocated rows. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The MessageType test checks live opcodes and refusal of every unallocated u8 value, including gaps beyond the first.",
+        "requirement": "Every unknown value in a closed set must be refused.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/protocol.toml#L15-L37",
+            "text": "\n# The two spaces where an unrecognised value is surfaced rather than refused.\n# Everything else is a closed set: an unknown value there is a message whose\n# meaning is not knowable, and the generated bindings make that a parse error.\nskip_unknown = [\"metric_kind\", \"event_kind\"]\n\n[[messages]]\nrequest = 0x00\nresponse = 0x80\nname = \"Discover\"\nauth_request = \"none\"\nauth_response = \"none\"\nstatus = \"live\"\nsince = \"1.0\"\n\n[[messages]]\nrequest = 0x01\nresponse = 0x81\nname = \"Hello\"\nauth_request = \"proof\"\nauth_response = \"rsp\"\nstatus = \"live\"\nsince = \"1.0\"\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L25-L111",
+            "text": "const REGISTRY: &str = include_str!(\"../protocol.toml\");\n\n/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L395-L408",
+            "text": "fn generated_name(name: &str) -> String {\n    name.split('(')\n        .next()\n        .unwrap_or(name)\n        .split(|c: char| !c.is_ascii_alphanumeric())\n        .filter(|w| !w.is_empty())\n        .map(|w| {\n            let mut c = w.chars();\n            c.next().map_or_else(String::new, |f| {\n                f.to_ascii_uppercase().to_string() + c.as_str()\n            })\n        })\n        .collect()\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L412-L489",
+            "text": "struct Allocated {\n    number: u16,\n    variant: Option<String>,\n}\n\n/// The numbers a `[[messages]]`-shaped table allocates under `request` and\n/// `response`, emitted unless the row is gone. A request is named for the row\n/// and its response for the row plus `response_suffix`, which is `Response`\n/// for a client message and `Ack` for a link-local one.\nfn message_numbers(table: &str, response_suffix: &str) -> Vec<Allocated> {\n    blocks(table)\n        .iter()\n        .flat_map(|m| {\n            let base = (!is_gone(m.status()))\n                .then(|| generated_name(m.field(\"name\").expect(\"a message has a name\")));\n            [(\"request\", \"\"), (\"response\", response_suffix)]\n                .into_iter()\n                .filter_map(|(key, suffix)| {\n                    Some(Allocated {\n                        number: m.number(key)?,\n                        variant: base.as_ref().map(|b| format!(\"{b}{suffix}\")),\n                    })\n                })\n                .collect::<Vec<_>>()\n        })\n        .collect()\n}\n\n/// The numbers under one `key` of a table, emitted under `rule` and named from\n/// the `named_by` column. That column is `name` everywhere but `[[errors]]`,\n/// whose variants are named for their `meaning`.\nfn numbers(\n    table: &str,\n    key: &str,\n    named_by: &str,\n    rule: fn(Option<&str>) -> bool,\n) -> Vec<Allocated> {\n    blocks(table)\n        .iter()\n        .filter_map(|row| {\n            Some(Allocated {\n                number: row.number(key)?,\n                variant: rule(row.status()).then(|| {\n                    generated_name(row.field(named_by).unwrap_or_else(|| {\n                        panic!(\"a {table} row numbered by {key} has no {named_by}\")\n                    }))\n                }),\n            })\n        })\n        .collect()\n}\n\n/// An error code is emitted only while live: a reserved code has no meaning\n/// yet, and a variant for it is a refusal a receiver could act on.\nfn live_only(status: Option<&str>) -> bool {\n    status == Some(\"live\")\n}\n\n/// An outcome or enum member is emitted unless retired or withdrawn, and a\n/// row with no status line is live.\nfn unless_gone(status: Option<&str>) -> bool {\n    !is_gone(status)\n}\n\n/// A `codes.*` row is emitted only when it carries a status and that status\n/// is not gone; a range row has neither a number nor a status.\nfn with_status_unless_gone(status: Option<&str>) -> bool {\n    status.is_some_and(|s| !is_gone(Some(s)))\n}\n\n/// Every allocated number of a closed set decodes through its `TryFrom` to the\n/// variant named for its registry row, every gone number is refused, and so is\n/// every other number the type can carry. A generator that dropped a live\n/// row, kept a retired one, or emitted a discriminant off by one is caught by\n/// whichever of the three it broke. The name is what catches two rows whose\n/// numbers were swapped: each number still decodes to a variant carrying it,\n/// so the round trip passes while every caller that writes `Hello` sends the\n/// opcode of something else.\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L490-L547",
+            "text": "macro_rules! closed_set {\n    ($test:ident, $ty:ty, $repr:ty, $rows:expr) => {\n        #[test]\n        fn $test() {\n            let rows: Vec<Allocated> = $rows;\n            assert!(\n                rows.iter().any(|r| r.variant.is_some()),\n                \"{} has no emitted row, so nothing here was compared\",\n                stringify!($ty)\n            );\n            for row in &rows {\n                let number = <$repr>::try_from(row.number).unwrap_or_else(|_| {\n                    panic!(\"{} does not fit a {}\", row.number, stringify!($repr))\n                });\n                let got = <$ty>::try_from(number);\n                if let Some(expected) = &row.variant {\n                    let variant = got.unwrap_or_else(|()| {\n                        panic!(\n                            \"{} {number:#x} is allocated and has no variant\",\n                            stringify!($ty)\n                        )\n                    });\n                    assert_eq!(\n                        variant as $repr,\n                        number,\n                        \"{} {number:#x} decodes to a variant numbered otherwise\",\n                        stringify!($ty)\n                    );\n                    assert_eq!(\n                        format!(\"{variant:?}\"),\n                        *expected,\n                        \"{} {number:#x} is {expected} in the registry\",\n                        stringify!($ty)\n                    );\n                } else {\n                    assert!(\n                        got.is_err(),\n                        \"{} {number:#x} is gone from the registry and still decodes\",\n                        stringify!($ty)\n                    );\n                }\n            }\n            // Every number the type can carry, not only the first free one: a\n            // stray arm at 0xfe passes a check that looks at 0x00.\n            let taken: std::collections::BTreeSet<u16> = rows.iter().map(|r| r.number).collect();\n            for free in <$repr>::MIN..=<$repr>::MAX {\n                if taken.contains(&u16::from(free)) {\n                    continue;\n                }\n                assert!(\n                    <$ty>::try_from(free).is_err(),\n                    \"{} accepts {free:#x}, which the registry never allocated\",\n                    stringify!($ty)\n                );\n            }\n        }\n    };\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L549-L554",
+            "text": "closed_set!(\n    message_type_carries_every_allocated_opcode_and_refuses_the_rest,\n    MessageType,\n    u8,\n    message_numbers(\"messages\", \"Response\")\n);\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "event-unknown-before",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053279006",
+      "expected": "partial",
+      "label_rationale": "Before: tests just the smallest free key. After: enumerates all free u16 keys. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The event lookup test asserts None for every unallocated u16 event kind, not only the smallest gap.",
+        "requirement": "Unknown lookup kinds must not receive a default classification or unit; all unallocated keys are in scope.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/603539943f0dfbbc2d87a0931ab40b2c6f03d4cf/crates/km43/tests/generated.rs#L25-L110",
+            "text": "\n/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/603539943f0dfbbc2d87a0931ab40b2c6f03d4cf/crates/km43/tests/generated.rs#L144-L147",
+            "text": "fn is_class_a_says_nothing_about_a_kind_the_registry_never_allocated() {\n    let free = first_free(blocks(\"events\").iter().filter_map(|e| e.number(\"kind\")));\n    assert_eq!(EventKind(free).is_class_a(), None);\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/603539943f0dfbbc2d87a0931ab40b2c6f03d4cf/crates/km43/tests/generated.rs#L304-L309",
+            "text": "fn first_free(allocated: impl Iterator<Item = u16>) -> u16 {\n    let taken: Vec<u16> = allocated.collect();\n    (0..=u16::MAX)\n        .find(|n| !taken.contains(n))\n        .expect(\"a table cannot fill the whole space\")\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "event-unknown-after",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053279006",
+      "expected": "supported",
+      "label_rationale": "Before: tests just the smallest free key. After: enumerates all free u16 keys. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The event lookup test asserts None for every unallocated u16 event kind, not only the smallest gap.",
+        "requirement": "Unknown lookup kinds must not receive a default classification or unit; all unallocated keys are in scope.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L25-L111",
+            "text": "const REGISTRY: &str = include_str!(\"../protocol.toml\");\n\n/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L147-L155",
+            "text": "fn is_class_a_says_nothing_about_any_kind_the_registry_never_allocated() {\n    for free in every_free(blocks(\"events\").iter().filter_map(|e| e.number(\"kind\"))) {\n        assert_eq!(\n            EventKind(free).is_class_a(),\n            None,\n            \"event kind {free:#06x} is not in the registry and the bindings classify it\"\n        );\n    }\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L335-L338",
+            "text": "fn every_free(allocated: impl Iterator<Item = u16>) -> impl Iterator<Item = u16> {\n    let taken: BTreeSet<u16> = allocated.collect();\n    (0..=u16::MAX).filter(move |n| !taken.contains(n))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "metric-unknown-before",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053279006",
+      "expected": "partial",
+      "label_rationale": "Before: tests just the smallest free key. After: enumerates all free u16 keys. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The metric lookup test asserts None for every unallocated u16 metric kind, not only the smallest gap.",
+        "requirement": "Unknown lookup kinds must not receive a default classification or unit; all unallocated keys are in scope.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/603539943f0dfbbc2d87a0931ab40b2c6f03d4cf/crates/km43/tests/generated.rs#L25-L110",
+            "text": "\n/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/603539943f0dfbbc2d87a0931ab40b2c6f03d4cf/crates/km43/tests/generated.rs#L179-L182",
+            "text": "fn unit_and_scale_has_no_answer_for_a_kind_the_registry_never_allocated() {\n    let free = first_free(blocks(\"metrics\").iter().filter_map(|m| m.number(\"kind\")));\n    assert_eq!(MetricKind(free).unit_and_scale(), None);\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/603539943f0dfbbc2d87a0931ab40b2c6f03d4cf/crates/km43/tests/generated.rs#L304-L309",
+            "text": "fn first_free(allocated: impl Iterator<Item = u16>) -> u16 {\n    let taken: Vec<u16> = allocated.collect();\n    (0..=u16::MAX)\n        .find(|n| !taken.contains(n))\n        .expect(\"a table cannot fill the whole space\")\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "metric-unknown-after",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053279006",
+      "expected": "supported",
+      "label_rationale": "Before: tests just the smallest free key. After: enumerates all free u16 keys. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The metric lookup test asserts None for every unallocated u16 metric kind, not only the smallest gap.",
+        "requirement": "Unknown lookup kinds must not receive a default classification or unit; all unallocated keys are in scope.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L25-L111",
+            "text": "const REGISTRY: &str = include_str!(\"../protocol.toml\");\n\n/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L195-L203",
+            "text": "fn unit_and_scale_has_no_answer_for_any_kind_the_registry_never_allocated() {\n    for free in every_free(blocks(\"metrics\").iter().filter_map(|m| m.number(\"kind\"))) {\n        assert_eq!(\n            MetricKind(free).unit_and_scale(),\n            None,\n            \"metric kind {free:#06x} is not in the registry and the bindings give it a unit\"\n        );\n    }\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L335-L338",
+            "text": "fn every_free(allocated: impl Iterator<Item = u16>) -> impl Iterator<Item = u16> {\n    let taken: BTreeSet<u16> = allocated.collect();\n    (0..=u16::MAX).filter(move |n| !taken.contains(n))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "capability-range-before",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053279008",
+      "expected": "partial",
+      "label_rationale": "Before: only first bit of range checked. After: inclusive loop checks each bit for each client kind. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The capability test checks that no client kind is granted any bit in the entire unallocated range, including both endpoints and interior bits.",
+        "requirement": "The registry leaves capability bits 5 through 15 unallocated; none may be granted.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/603539943f0dfbbc2d87a0931ab40b2c6f03d4cf/crates/km43/tests/generated.rs#L25-L110",
+            "text": "\n/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/603539943f0dfbbc2d87a0931ab40b2c6f03d4cf/crates/km43/tests/generated.rs#L202-L220",
+            "text": "fn client_kinds() -> Vec<(ClientKind, String)> {\n    blocks(\"enums.client_kind\")\n        .iter()\n        .filter(|k| !is_gone(k.status()))\n        .map(|k| {\n            let value = u8::try_from(k.number(\"value\").expect(\"a kind has a value\"))\n                .expect(\"a client kind is a byte\");\n            let kind = ClientKind::try_from(value)\n                .unwrap_or_else(|()| panic!(\"client kind {value} is allocated and has no variant\"));\n            let name = k.field(\"name\").expect(\"a kind has a name\").to_owned();\n            assert_eq!(\n                format!(\"{kind:?}\"),\n                generated_name(&name),\n                \"client kind {value} is {name} in the registry\"\n            );\n            (kind, name)\n        })\n        .collect()\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/603539943f0dfbbc2d87a0931ab40b2c6f03d4cf/crates/km43/tests/generated.rs#L316-L329",
+            "text": "fn generated_name(name: &str) -> String {\n    name.split('(')\n        .next()\n        .unwrap_or(name)\n        .split(|c: char| !c.is_ascii_alphanumeric())\n        .filter(|w| !w.is_empty())\n        .map(|w| {\n            let mut c = w.chars();\n            c.next().map_or_else(String::new, |f| {\n                f.to_ascii_uppercase().to_string() + c.as_str()\n            })\n        })\n        .collect()\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/603539943f0dfbbc2d87a0931ab40b2c6f03d4cf/crates/km43/tests/generated.rs#L285-L300",
+            "text": "fn no_client_kind_is_granted_a_bit_the_registry_has_not_allocated() {\n    let unallocated = blocks(\"client_capability\")\n        .iter()\n        .find_map(|c| {\n            let range = c.field(\"range\")?;\n            let (first, _) = range.split_once('–')?;\n            parse_number(first.trim())\n        })\n        .expect(\"the capability table names its unallocated range\");\n    for (kind, _) in client_kinds() {\n        assert!(\n            !ClientCapability::granted(kind).allows(ClientCapability(1 << unallocated)),\n            \"{kind:?} holds bit {unallocated}, which the registry leaves unallocated\"\n        );\n    }\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "capability-range-after",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053279008",
+      "expected": "supported",
+      "label_rationale": "Before: only first bit of range checked. After: inclusive loop checks each bit for each client kind. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The capability test checks that no client kind is granted any bit in the entire unallocated range, including both endpoints and interior bits.",
+        "requirement": "The registry leaves capability bits 5 through 15 unallocated; none may be granted.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L25-L111",
+            "text": "const REGISTRY: &str = include_str!(\"../protocol.toml\");\n\n/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L223-L241",
+            "text": "fn client_kinds() -> Vec<(ClientKind, String)> {\n    blocks(\"enums.client_kind\")\n        .iter()\n        .filter(|k| !is_gone(k.status()))\n        .map(|k| {\n            let value = u8::try_from(k.number(\"value\").expect(\"a kind has a value\"))\n                .expect(\"a client kind is a byte\");\n            let kind = ClientKind::try_from(value)\n                .unwrap_or_else(|()| panic!(\"client kind {value} is allocated and has no variant\"));\n            let name = k.field(\"name\").expect(\"a kind has a name\").to_owned();\n            assert_eq!(\n                format!(\"{kind:?}\"),\n                generated_name(&name),\n                \"client kind {value} is {name} in the registry\"\n            );\n            (kind, name)\n        })\n        .collect()\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L395-L408",
+            "text": "fn generated_name(name: &str) -> String {\n    name.split('(')\n        .next()\n        .unwrap_or(name)\n        .split(|c: char| !c.is_ascii_alphanumeric())\n        .filter(|w| !w.is_empty())\n        .map(|w| {\n            let mut c = w.chars();\n            c.next().map_or_else(String::new, |f| {\n                f.to_ascii_uppercase().to_string() + c.as_str()\n            })\n        })\n        .collect()\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L307-L330",
+            "text": "fn no_client_kind_is_granted_any_bit_the_registry_has_not_allocated() {\n    let (first, last) = blocks(\"client_capability\")\n        .iter()\n        .find_map(|c| {\n            let (first, last) = c.field(\"range\")?.split_once('–')?;\n            Some((parse_number(first.trim())?, parse_number(last.trim())?))\n        })\n        .expect(\"the capability table names its unallocated range by both ends\");\n    assert!(\n        first <= last,\n        \"the unallocated range {first}–{last} is empty\"\n    );\n    for (kind, _) in client_kinds() {\n        for bit in first..=last {\n            let one = 1u16\n                .checked_shl(u32::from(bit))\n                .unwrap_or_else(|| panic!(\"bit {bit} does not fit a u16 mask\"));\n            assert!(\n                !ClientCapability::granted(kind).allows(ClientCapability(one)),\n                \"{kind:?} holds bit {bit}, which the registry leaves unallocated\"\n            );\n        }\n    }\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retired-metrics-before",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053300061",
+      "expected": "partial",
+      "label_rationale": "Before: retired rows skipped; the unknown-key test treats them as allocated, leaving a gap. After: all rows compared and a retired-row counter prevents vacuity. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The unit mapping test compares unit and decade against every registry metric, including retired metrics.",
+        "requirement": "Retired metrics retain unit mappings so historical records remain interpretable.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/eae40e13058ff0016a6666b76e72b74ba25b77a3/crates/km43/tests/generated.rs#L25-L111",
+            "text": "const REGISTRY: &str = include_str!(\"../protocol.toml\");\n\n/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/eae40e13058ff0016a6666b76e72b74ba25b77a3/crates/km43/tests/generated.rs#L161-L182",
+            "text": "fn unit_and_scale_answers_the_registry_s_unit_and_decade_for_every_metric() {\n    let mut compared = 0;\n    for metric in blocks(\"metrics\") {\n        if is_gone(metric.status()) {\n            continue;\n        }\n        let kind = MetricKind(metric.number(\"kind\").expect(\"a metric has a kind\"));\n        let unit = metric.field(\"unit\").expect(\"a metric has a unit\");\n        let scale: i8 = metric\n            .field(\"scale\")\n            .expect(\"a metric has a scale\")\n            .parse()\n            .expect(\"a scale is a small signed integer\");\n        assert_eq!(\n            kind.unit_and_scale(),\n            Some((unit, scale)),\n            \"{kind:?} is read in {unit} at 10^{scale} in the registry\"\n        );\n        compared += 1;\n    }\n    assert!(compared >= 20, \"only {compared} metrics were compared\");\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retired-metrics-after",
+      "group": "km43-pr-43",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/km43/pull/43#discussion_r4053300061",
+      "expected": "supported",
+      "label_rationale": "Before: retired rows skipped; the unknown-key test treats them as allocated, leaving a gap. After: all rows compared and a retired-row counter prevents vacuity. Labels are annotations based on the reviewed correction, not independent human adjudication.",
+      "state": {
+        "claim": "The unit mapping test compares unit and decade against every registry metric, including retired metrics.",
+        "requirement": "Retired metrics retain unit mappings so historical records remain interpretable.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L25-L111",
+            "text": "const REGISTRY: &str = include_str!(\"../protocol.toml\");\n\n/// One `[[table]]` block, as the `key = value` lines under it.\nstruct Table {\n    name: String,\n    fields: Vec<(String, String)>,\n}\n\nimpl Table {\n    /// A field's value with its quotes stripped, or `None` when the block has\n    /// no such line.\n    fn field(&self, key: &str) -> Option<&str> {\n        self.fields\n            .iter()\n            .find(|(k, _)| k == key)\n            .map(|(_, v)| v.trim().trim_matches('\"'))\n    }\n\n    /// A field that is a number, written in hex or decimal.\n    fn number(&self, key: &str) -> Option<u16> {\n        parse_number(self.field(key)?)\n    }\n\n    /// A `[\"a\", \"b\"]` field as its words.\n    fn list(&self, key: &str) -> Vec<String> {\n        self.field(key)\n            .map(|v| {\n                v.trim_matches(|c| c == '[' || c == ']')\n                    .split(',')\n                    .map(|w| w.trim().trim_matches('\"').to_owned())\n                    .filter(|w| !w.is_empty())\n                    .collect()\n            })\n            .unwrap_or_default()\n    }\n\n    /// A `status` line, or `None` when the row carries none.\n    fn status(&self) -> Option<&str> {\n        self.field(\"status\")\n    }\n}\n\nfn parse_number(v: &str) -> Option<u16> {\n    v.strip_prefix(\"0x\")\n        .map_or_else(|| v.parse().ok(), |hex| u16::from_str_radix(hex, 16).ok())\n}\n\n/// Every block in the registry, by scanning rather than parsing: a heading\n/// line opens a block and every `key = value` line until the next heading\n/// belongs to it. Not a TOML crate, for the reason `admission.rs` gives.\nfn tables() -> Vec<Table> {\n    let mut out: Vec<Table> = Vec::new();\n    for line in REGISTRY.lines() {\n        let line = line.trim();\n        if line.starts_with('#') || line.is_empty() {\n            continue;\n        }\n        if line.starts_with('[') {\n            out.push(Table {\n                name: line.trim_matches(|c| c == '[' || c == ']').to_owned(),\n                fields: Vec::new(),\n            });\n            continue;\n        }\n        if let (Some(last), Some((key, value))) = (out.last_mut(), line.split_once('=')) {\n            last.fields\n                .push((key.trim().to_owned(), value.trim().to_owned()));\n        }\n    }\n    out\n}\n\n/// The blocks under one heading, and there must be some: a scan that matched\n/// nothing would pass every assertion below over an empty list.\nfn blocks(name: &str) -> Vec<Table> {\n    let found: Vec<_> = tables().into_iter().filter(|t| t.name == name).collect();\n    assert!(\n        !found.is_empty(),\n        \"no [[{name}]] block was read out of protocol.toml\"\n    );\n    found\n}\n\n/// Whether a status means the generator drops the number.\nfn is_gone(status: Option<&str>) -> bool {\n    matches!(status, Some(\"withdrawn\" | \"retired\"))\n}\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/km43/blob/48e70bf0687624118316e4c40a47c8b29c911599/crates/km43/tests/generated.rs#L163-L189",
+            "text": "fn unit_and_scale_answers_the_registry_s_unit_and_decade_for_every_metric() {\n    let mut compared = 0;\n    let mut retired = 0;\n    for metric in blocks(\"metrics\") {\n        if is_gone(metric.status()) {\n            retired += 1;\n        }\n        let kind = MetricKind(metric.number(\"kind\").expect(\"a metric has a kind\"));\n        let unit = metric.field(\"unit\").expect(\"a metric has a unit\");\n        let scale: i8 = metric\n            .field(\"scale\")\n            .expect(\"a metric has a scale\")\n            .parse()\n            .expect(\"a scale is a small signed integer\");\n        assert_eq!(\n            kind.unit_and_scale(),\n            Some((unit, scale)),\n            \"{kind:?} is read in {unit} at 10^{scale} in the registry\"\n        );\n        compared += 1;\n    }\n    assert!(compared >= 20, \"only {compared} metrics were compared\");\n    assert!(\n        retired > 0,\n        \"no retired metric was compared, so their units are pinned by nothing\"\n    );\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frame-refusal-before",
+      "group": "firmware-pr-64",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/firmware/pull/64#discussion_r4057293179",
+      "expected": "partial",
+      "label_rationale": "Before: increments relative to after_cut can pass when the malformed merge was delivered. After: frames==0 and dropped==1 explicitly asserted before intact delivery.",
+      "state": {
+        "claim": "This test asserts the merged cut fragment is refused with no delivered frame and the following intact frame is delivered.",
+        "requirement": "Only the cut-fragment refusal and following-frame recovery clauses of F-086 are claimed, not all F-086 obligations.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/docs/REQUIREMENTS.md#L372-L380",
+            "text": "**F-086** — A link reader that loses its footing finds it again at the next\ndelimiter, and the loss is bounded to one frame. A pair pulled mid-frame\nleaves a fragment that runs into whatever arrives next, so the frame whose\ndelimiter closes that run is read as one frame with the fragment and\nrefused; the frame after it is read whole. A break the line then goes quiet\nafter costs only the part-frame, which the reader abandons once it is told\nhow long the line has been silent. No input panics, and nothing on this path\nallocates. Source: KM43 P-030, [#3][plan] §M3 exit. M3.\n\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/475a4eefbabff276825c7ae930f960f51ef83dd9/crates/o89-link/src/wire.rs#L79-L86",
+            "text": "    fn frame(seed: u32, payload_len: usize, wire: &mut [u8; MAX_FRAME]) -> usize {\n        let mut payload = [0u8; MAX_PAYLOAD];\n        let payload = payload.get_mut(..payload_len).expect(\"a payload that fits\");\n        worst_case(payload, seed);\n        FrameWriter::new()\n            .write(payload, wire)\n            .expect(\"a frame that fits\")\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/475a4eefbabff276825c7ae930f960f51ef83dd9/crates/o89-link/src/wire.rs#L90-L94",
+            "text": "    struct Read {\n        frames: usize,\n        dropped: usize,\n        abandoned: usize,\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/475a4eefbabff276825c7ae930f960f51ef83dd9/crates/o89-link/src/wire.rs#L96-L105",
+            "text": "    fn feed(reader: &mut FrameReader, bytes: &[u8], seen: &mut Read) {\n        for byte in bytes {\n            match reader.push(*byte) {\n                Received::Frame(_) => seen.frames = seen.frames.saturating_add(1),\n                Received::Dropped(_) => seen.dropped = seen.dropped.saturating_add(1),\n                Received::Abandoned => seen.abandoned = seen.abandoned.saturating_add(1),\n                Received::Nothing => {}\n            }\n        }\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/475a4eefbabff276825c7ae930f960f51ef83dd9/crates/o89-link/src/wire.rs#L148-L192",
+            "text": "    fn f_086_a_pair_pulled_mid_frame_costs_one_frame_and_the_next_is_read() {\n        // A thousand pulls: every cut point of a frame, across payload\n        // lengths, each followed by two whole frames. The fragment runs\n        // into the frame after it and the two are read as one, so that\n        // frame is lost; the frame after *it* has to arrive whole. That is\n        // recovery inside one delimiter.\n        let mut trials = 0u32;\n        for payload_len in [1usize, 2, 17, 64, 255, 256, 700, MAX_PAYLOAD] {\n            let mut cut_wire = [0u8; MAX_FRAME];\n            let cut_len = frame(7, payload_len, &mut cut_wire);\n            let mut next_wire = [0u8; MAX_FRAME];\n            let next_len = frame(11, payload_len, &mut next_wire);\n            let mut after_wire = [0u8; MAX_FRAME];\n            let after_len = frame(13, payload_len, &mut after_wire);\n            // Cut everywhere but at the delimiter itself: a frame that\n            // ended is not a frame that was cut.\n            for cut in 1..cut_len {\n                trials = trials.saturating_add(1);\n                let mut reader = FrameReader::new();\n                let mut seen = Read::default();\n                feed(&mut reader, cut_wire.get(..cut).expect(\"fits\"), &mut seen);\n                feed(\n                    &mut reader,\n                    next_wire.get(..next_len).expect(\"fits\"),\n                    &mut seen,\n                );\n                let after_cut = seen.frames;\n                feed(\n                    &mut reader,\n                    after_wire.get(..after_len).expect(\"fits\"),\n                    &mut seen,\n                );\n                assert_eq!(\n                    seen.frames.saturating_sub(after_cut),\n                    1,\n                    \"the frame after the loss was not read whole: payload {payload_len}, cut {cut}\"\n                );\n                assert!(\n                    seen.frames <= 2,\n                    \"more frames than were sent whole: payload {payload_len}, cut {cut}\"\n                );\n            }\n        }\n        assert!(trials >= 1000, \"only {trials} pulls\");\n    }\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frame-refusal-after",
+      "group": "firmware-pr-64",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/firmware/pull/64#discussion_r4057293179",
+      "expected": "supported",
+      "label_rationale": "Before: increments relative to after_cut can pass when the malformed merge was delivered. After: frames==0 and dropped==1 explicitly asserted before intact delivery.",
+      "state": {
+        "claim": "This test asserts the merged cut fragment is refused with no delivered frame and the following intact frame is delivered.",
+        "requirement": "Only the cut-fragment refusal and following-frame recovery clauses of F-086 are claimed, not all F-086 obligations.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/docs/REQUIREMENTS.md#L372-L380",
+            "text": "**F-086** — A link reader that loses its footing finds it again at the next\ndelimiter, and the loss is bounded to one frame. A pair pulled mid-frame\nleaves a fragment that runs into whatever arrives next, so the frame whose\ndelimiter closes that run is read as one frame with the fragment and\nrefused; the frame after it is read whole. A break the line then goes quiet\nafter costs only the part-frame, which the reader abandons once it is told\nhow long the line has been silent. No input panics, and nothing on this path\nallocates. Source: KM43 P-030, [#3][plan] §M3 exit. M3.\n\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/crates/o89-link/src/wire.rs#L105-L112",
+            "text": "    fn frame(seed: u32, payload_len: usize, wire: &mut [u8; MAX_FRAME]) -> usize {\n        let mut payload = [0u8; MAX_PAYLOAD];\n        let payload = payload.get_mut(..payload_len).expect(\"a payload that fits\");\n        worst_case(payload, seed);\n        FrameWriter::new()\n            .write(payload, wire)\n            .expect(\"a frame that fits\")\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/crates/o89-link/src/wire.rs#L116-L120",
+            "text": "    struct Read {\n        frames: usize,\n        dropped: usize,\n        abandoned: usize,\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/crates/o89-link/src/wire.rs#L122-L131",
+            "text": "    fn feed(reader: &mut FrameReader, bytes: &[u8], seen: &mut Read) {\n        for byte in bytes {\n            match reader.push(*byte) {\n                Received::Frame(_) => seen.frames = seen.frames.saturating_add(1),\n                Received::Dropped(_) => seen.dropped = seen.dropped.saturating_add(1),\n                Received::Abandoned => seen.abandoned = seen.abandoned.saturating_add(1),\n                Received::Nothing => {}\n            }\n        }\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/crates/o89-link/src/wire.rs#L174-L222",
+            "text": "    fn f_086_a_pair_pulled_mid_frame_costs_one_frame_and_the_next_is_read() {\n        // A thousand pulls: every cut point of a frame, across payload\n        // lengths, each followed by two whole frames. The fragment runs\n        // into the frame after it and the two are read as one, so that\n        // frame is lost; the frame after *it* has to arrive whole. That is\n        // recovery inside one delimiter.\n        let mut trials = 0u32;\n        for payload_len in [1usize, 2, 17, 64, 255, 256, 700, MAX_PAYLOAD] {\n            let mut cut_wire = [0u8; MAX_FRAME];\n            let cut_len = frame(7, payload_len, &mut cut_wire);\n            let mut next_wire = [0u8; MAX_FRAME];\n            let next_len = frame(11, payload_len, &mut next_wire);\n            let mut after_wire = [0u8; MAX_FRAME];\n            let after_len = frame(13, payload_len, &mut after_wire);\n            // Cut everywhere but at the delimiter itself: a frame that\n            // ended is not a frame that was cut.\n            for cut in 1..cut_len {\n                trials = trials.saturating_add(1);\n                let mut reader = FrameReader::new();\n                let mut seen = Read::default();\n                feed(&mut reader, cut_wire.get(..cut).expect(\"fits\"), &mut seen);\n                feed(\n                    &mut reader,\n                    next_wire.get(..next_len).expect(\"fits\"),\n                    &mut seen,\n                );\n                assert_eq!(\n                    seen.frames, 0,\n                    \"merged fragment accepted: payload {payload_len}, cut {cut}\"\n                );\n                assert_eq!(\n                    seen.dropped, 1,\n                    \"merged fragment not refused: payload {payload_len}, cut {cut}\"\n                );\n                let after_cut = seen.frames;\n                feed(\n                    &mut reader,\n                    after_wire.get(..after_len).expect(\"fits\"),\n                    &mut seen,\n                );\n                assert_eq!(\n                    seen.frames.saturating_sub(after_cut),\n                    1,\n                    \"the frame after the loss was not read whole: payload {payload_len}, cut {cut}\"\n                );\n            }\n        }\n        assert!(trials >= 1000, \"only {trials} pulls\");\n    }\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ring-regression-before",
+      "group": "firmware-pr-38",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/firmware/pull/38#discussion_r4051377587",
+      "expected": "partial",
+      "label_rationale": "The author corrected the initial claim: five blocks only revisit an erased block and pass the defect; six revisit retained records and fail. This mutation result is reported in review, not reproduced by this fixture build.",
+      "state": {
+        "claim": "This test checks retained sequence order and exposes the shown wrapping_sub ring-distance regression after wrap on a non-power-of-two ring.",
+        "requirement": "The ring must read retained records in chronological sequence and avoid revisiting older records after the newest. The supplied historical run implementation is the regression this test is claimed to detect.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/1863df7fdb3c07e23cef08cfa7f95d0e05bc16d1/crates/o89-core/src/ring.rs#L1219-L1246",
+            "text": "    fn p_099_the_run_is_the_distance_in_the_ring_for_a_block_count_that_is_not_a_power_of_two() {\n        // Five blocks: a wrapping subtraction modulo two to the thirty-two\n        // is off by one for any count that does not divide it, and the walk\n        // then hands a client older records after newer ones.\n        let mut part: Part<ERASE> = fresh();\n        let mut ring = open_with(&mut part, 5);\n        let mut last = 0;\n        for i in 0..120u64 {\n            last = append(&mut ring, Some(1_790_000_000_000 + i));\n        }\n        let oldest = ring.head().oldest.expect(\"records\");\n        assert!(oldest > 1);\n        let (seqs, count, next) = read(&mut ring, 1);\n        assert_eq!(seqs[0], oldest);\n        assert!(seqs[..count].windows(2).all(|w| w[1] == w[0] + 1));\n        assert_eq!(next, last + 1);\n        let mut scratch = [0u8; SCRATCH];\n        assert_eq!(\n            block_on(ring.floor(&mut scratch)),\n            Ok(Some(1_790_000_000_000 + 119))\n        );\n        // A reboot walks the same run.\n        close(&mut part, ring);\n        let mut rebooted = open_with(&mut part, 5);\n        let (seqs, count, _) = read(&mut rebooted, 1);\n        assert_eq!(seqs[0], oldest);\n        assert_eq!(seqs[count - 1], last);\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/1863df7fdb3c07e23cef08cfa7f95d0e05bc16d1/crates/o89-core/src/ring.rs#L957-L961",
+            "text": "    fn open_with<const E: usize>(part: &mut Part<E>, blocks: u32) -> Ring<Part<E>> {\n        let taken = core::mem::replace(part, fresh());\n        let mut scratch = [0u8; SCRATCH];\n        block_on(Ring::open(taken, 0, blocks, &mut scratch)).expect(\"opens\")\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/1863df7fdb3c07e23cef08cfa7f95d0e05bc16d1/crates/o89-core/src/ring.rs#L964-L966",
+            "text": "    fn close<const E: usize>(part: &mut Part<E>, ring: Ring<Part<E>>) {\n        *part = ring.release();\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/1863df7fdb3c07e23cef08cfa7f95d0e05bc16d1/crates/o89-core/src/ring.rs#L268-L311",
+            "text": "    pub async fn append(\n        &mut self,\n        class: Class,\n        payload: &[u8],\n        scratch: &mut [u8],\n    ) -> Result<u64, RingError<N::Error>> {\n        let needs = record::framed_len(payload.len());\n        if needs > N::ERASE_SIZE {\n            return Err(RingError::Unframed(Unframed::PayloadTooLong(payload.len())));\n        }\n        if scratch.len() < SCRATCH {\n            return Err(RingError::ScratchTooSmall(scratch.len()));\n        }\n        let seq = self.head.next_seq;\n        let event = Event::decode(payload).map_err(|_| RingError::NotTheNextEvent)?;\n        if event.seq.0 != seq {\n            return Err(RingError::NotTheNextEvent);\n        }\n        // The page turns before the record is framed: turning it probes\n        // the part through the same scratch the frame would sit in.\n        if self.head.at.saturating_add(Self::len_u32(needs)?) > Self::block_len() {\n            self.turn_the_page(scratch).await?;\n        }\n        let framed = record::frame(scratch, seq, class, payload)?;\n        let at = self.address(self.head.block, self.head.at)?;\n        self.flash\n            .write(at.saturating_add(2), framed.body(scratch))\n            .await\n            .map_err(RingError::Flash)?;\n        self.flash\n            .write(at, &MAGIC_BYTES)\n            .await\n            .map_err(RingError::Flash)?;\n\n        self.head.at = self.head.at.saturating_add(Self::len_u32(needs)?);\n        self.head.next_seq = seq.saturating_add(1);\n        if self.head.oldest.is_none() {\n            self.head.oldest = Some(seq);\n        }\n        if let Some(at) = event.at {\n            self.floor = Floor::Found(Some(at));\n        }\n        Ok(seq)\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/1863df7fdb3c07e23cef08cfa7f95d0e05bc16d1/crates/o89-core/src/ring.rs#L878-L891",
+            "text": "        fn read(\n            &mut self,\n            offset: u32,\n            bytes: &mut [u8],\n        ) -> impl Future<Output = Result<(), Refused>> {\n            let at = offset as usize;\n            self.read = self.read.saturating_add(bytes.len());\n            let outcome = self\n                .bytes\n                .get(at..at.saturating_add(bytes.len()))\n                .map(|found| bytes.copy_from_slice(found))\n                .ok_or(Refused);\n            core::future::ready(outcome)\n        }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/32a6f50656dcf9eb430f78bd39c2e8de46b24375/crates/o89-core/src/ring.rs#L376-L395",
+            "text": "    async fn run(&mut self, scratch: &mut [u8]) -> Result<(u32, u32), RingError<N::Error>> {\n        // Post-wrap the run starts two past the head, after the erased\n        // block; pre-wrap it starts at zero. Either way the first block of\n        // the run is the first holding records from two past the head.\n        let mut block = self.next_block(self.next_block(self.head.block));\n        for _ in 0..self.blocks {\n            match self.probe(block, scratch).await? {\n                Probe::Records { .. } => break,\n                Probe::Erased | Probe::Closed => block = self.next_block(block),\n            }\n        }\n        let run = self\n            .head\n            .block\n            .wrapping_sub(block)\n            .checked_rem(self.blocks)\n            .unwrap_or(0)\n            .saturating_add(1);\n        Ok((block, run))\n    }\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ring-regression-after",
+      "group": "firmware-pr-38",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/firmware/pull/38#discussion_r4051377587",
+      "expected": "supported",
+      "label_rationale": "The author corrected the initial claim: five blocks only revisit an erased block and pass the defect; six revisit retained records and fail. This mutation result is reported in review, not reproduced by this fixture build.",
+      "state": {
+        "claim": "This test checks retained sequence order and exposes the shown wrapping_sub ring-distance regression after wrap on a non-power-of-two ring.",
+        "requirement": "The ring must read retained records in chronological sequence and avoid revisiting older records after the newest. The supplied historical run implementation is the regression this test is claimed to detect.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L1219-L1248",
+            "text": "    fn p_099_the_run_is_the_distance_in_the_ring_for_a_block_count_that_is_not_a_power_of_two() {\n        // Six blocks: two to the thirty-two leaves four modulo six, so a\n        // wrapping subtraction makes the run four blocks too long, and the\n        // walk then hands a client the oldest records again after the\n        // newest. Five would leave one, which only revisits the erased\n        // block and shows nothing.\n        let mut part: Part<ERASE> = fresh();\n        let mut ring = open_with(&mut part, 6);\n        let mut last = 0;\n        for i in 0..120u64 {\n            last = append(&mut ring, Some(1_790_000_000_000 + i));\n        }\n        let oldest = ring.head().oldest.expect(\"records\");\n        assert!(oldest > 1);\n        let (seqs, count, next) = read(&mut ring, 1);\n        assert_eq!(seqs[0], oldest);\n        assert!(seqs[..count].windows(2).all(|w| w[1] == w[0] + 1));\n        assert_eq!(next, last + 1);\n        let mut scratch = [0u8; SCRATCH];\n        assert_eq!(\n            block_on(ring.floor(&mut scratch)),\n            Ok(Some(1_790_000_000_000 + 119))\n        );\n        // A reboot walks the same run.\n        close(&mut part, ring);\n        let mut rebooted = open_with(&mut part, 6);\n        let (seqs, count, _) = read(&mut rebooted, 1);\n        assert_eq!(seqs[0], oldest);\n        assert_eq!(seqs[count - 1], last);\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L957-L961",
+            "text": "    fn open_with<const E: usize>(part: &mut Part<E>, blocks: u32) -> Ring<Part<E>> {\n        let taken = core::mem::replace(part, fresh());\n        let mut scratch = [0u8; SCRATCH];\n        block_on(Ring::open(taken, 0, blocks, &mut scratch)).expect(\"opens\")\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L964-L966",
+            "text": "    fn close<const E: usize>(part: &mut Part<E>, ring: Ring<Part<E>>) {\n        *part = ring.release();\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L268-L311",
+            "text": "    pub async fn append(\n        &mut self,\n        class: Class,\n        payload: &[u8],\n        scratch: &mut [u8],\n    ) -> Result<u64, RingError<N::Error>> {\n        let needs = record::framed_len(payload.len());\n        if needs > N::ERASE_SIZE {\n            return Err(RingError::Unframed(Unframed::PayloadTooLong(payload.len())));\n        }\n        if scratch.len() < SCRATCH {\n            return Err(RingError::ScratchTooSmall(scratch.len()));\n        }\n        let seq = self.head.next_seq;\n        let event = Event::decode(payload).map_err(|_| RingError::NotTheNextEvent)?;\n        if event.seq.0 != seq {\n            return Err(RingError::NotTheNextEvent);\n        }\n        // The page turns before the record is framed: turning it probes\n        // the part through the same scratch the frame would sit in.\n        if self.head.at.saturating_add(Self::len_u32(needs)?) > Self::block_len() {\n            self.turn_the_page(scratch).await?;\n        }\n        let framed = record::frame(scratch, seq, class, payload)?;\n        let at = self.address(self.head.block, self.head.at)?;\n        self.flash\n            .write(at.saturating_add(2), framed.body(scratch))\n            .await\n            .map_err(RingError::Flash)?;\n        self.flash\n            .write(at, &MAGIC_BYTES)\n            .await\n            .map_err(RingError::Flash)?;\n\n        self.head.at = self.head.at.saturating_add(Self::len_u32(needs)?);\n        self.head.next_seq = seq.saturating_add(1);\n        if self.head.oldest.is_none() {\n            self.head.oldest = Some(seq);\n        }\n        if let Some(at) = event.at {\n            self.floor = Floor::Found(Some(at));\n        }\n        Ok(seq)\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L878-L891",
+            "text": "        fn read(\n            &mut self,\n            offset: u32,\n            bytes: &mut [u8],\n        ) -> impl Future<Output = Result<(), Refused>> {\n            let at = offset as usize;\n            self.read = self.read.saturating_add(bytes.len());\n            let outcome = self\n                .bytes\n                .get(at..at.saturating_add(bytes.len()))\n                .map(|found| bytes.copy_from_slice(found))\n                .ok_or(Refused);\n            core::future::ready(outcome)\n        }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/32a6f50656dcf9eb430f78bd39c2e8de46b24375/crates/o89-core/src/ring.rs#L376-L395",
+            "text": "    async fn run(&mut self, scratch: &mut [u8]) -> Result<(u32, u32), RingError<N::Error>> {\n        // Post-wrap the run starts two past the head, after the erased\n        // block; pre-wrap it starts at zero. Either way the first block of\n        // the run is the first holding records from two past the head.\n        let mut block = self.next_block(self.next_block(self.head.block));\n        for _ in 0..self.blocks {\n            match self.probe(block, scratch).await? {\n                Probe::Records { .. } => break,\n                Probe::Erased | Probe::Closed => block = self.next_block(block),\n            }\n        }\n        let run = self\n            .head\n            .block\n            .wrapping_sub(block)\n            .checked_rem(self.blocks)\n            .unwrap_or(0)\n            .saturating_add(1);\n        Ok((block, run))\n    }\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rail-reset",
+      "group": "firmware-pr-54",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/firmware/pull/54#discussion_r4054528142",
+      "expected": "supported",
+      "label_rationale": "The reviewed correction supplies direct state/output assertions for each narrowly stated obligation; no hardware qualification is claimed.",
+      "state": {
+        "claim": "This host test asserts that a reset arriving in the same turn as successful cut persistence is served, the cut is deferred, the rail stays on, and the count is rewritten.",
+        "requirement": "This claim covers the host Rail::turn state machine only. Physical pin timing and real FRAM behavior require separate bench evidence.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L185-L187",
+            "text": "    fn at(millis: u64) -> Tick {\n        Tick::from_millis(millis)\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L190-L201",
+            "text": "    fn rail() -> Rail {\n        let mut seq = RailSequencer::new(Revision::B);\n        seq.carry(\n            CarriedCuts {\n                cuts: RecentCuts::NONE,\n                missed: 0,\n            },\n            at(0),\n        );\n        let _ = seq.power_on(at(0));\n        Rail::new(seq, Some(CutsOnPart::read(RecentCuts::NONE)))\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L204-L211",
+            "text": "    fn asked(rail: &mut Rail, now: u64) -> RecentCuts {\n        let turn = rail.turn(at(now), Some(RailRequest::Recover), None);\n        assert_eq!(turn.recovered, None, \"nothing moves before the count lands\");\n        let Some(Keep::Cut(cuts)) = turn.keep else {\n            panic!(\"the count goes out: {turn:?}\");\n        };\n        cuts\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L239-L254",
+            "text": "    fn f_017_a_module_reset_asked_as_the_count_lands_is_served_and_the_cut_is_not_made() {\n        let mut rail = rail();\n        let cuts = asked(&mut rail, 1_000);\n        let turn = rail.turn(\n            at(1_020),\n            Some(RailRequest::ResetModule(ModuleBoot::Download)),\n            Some((Keep::Cut(cuts), Ok(()))),\n        );\n        assert_eq!(turn.reset, Some(ModuleReset::Holding));\n        assert_eq!(turn.recovered, Some(Recovery::Deferred));\n        assert_eq!(rail.lines().rail, RailLine::On);\n        assert_eq!(rail.lines().boot, BootLine::HeldLow, \"the download's strap\");\n        // The part holds a cut that was never made; the count this boot\n        // holds goes back out.\n        assert_eq!(turn.keep, Some(Keep::Changed(RecentCuts::NONE)));\n    }\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rail-landed",
+      "group": "firmware-pr-54",
+      "kind": "review-derived",
+      "review_url": "https://github.com/origin89hq/firmware/pull/54#discussion_r4054528309",
+      "expected": "supported",
+      "label_rationale": "The reviewed correction supplies direct state/output assertions for each narrowly stated obligation; no hardware qualification is claimed.",
+      "state": {
+        "claim": "This host test asserts that the rail waits for cut persistence, switches off on successful completion, and requests a rewrite using the actual cut instant.",
+        "requirement": "This claim covers the host Rail::turn state machine only. Physical pin timing and real FRAM behavior require separate bench evidence.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L185-L187",
+            "text": "    fn at(millis: u64) -> Tick {\n        Tick::from_millis(millis)\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L190-L201",
+            "text": "    fn rail() -> Rail {\n        let mut seq = RailSequencer::new(Revision::B);\n        seq.carry(\n            CarriedCuts {\n                cuts: RecentCuts::NONE,\n                missed: 0,\n            },\n            at(0),\n        );\n        let _ = seq.power_on(at(0));\n        Rail::new(seq, Some(CutsOnPart::read(RecentCuts::NONE)))\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L204-L211",
+            "text": "    fn asked(rail: &mut Rail, now: u64) -> RecentCuts {\n        let turn = rail.turn(at(now), Some(RailRequest::Recover), None);\n        assert_eq!(turn.recovered, None, \"nothing moves before the count lands\");\n        let Some(Keep::Cut(cuts)) = turn.keep else {\n            panic!(\"the count goes out: {turn:?}\");\n        };\n        cuts\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L214-L236",
+            "text": "    fn f_017_a_cut_is_made_on_the_turn_its_count_lands_and_its_instant_is_then_rewritten() {\n        let mut rail = rail();\n        let cuts = asked(&mut rail, 1_000);\n        assert_eq!(cuts, RecentCuts::one_at(at(1_000)));\n        assert_eq!(rail.lines().rail, RailLine::On);\n        let turn = rail.turn(at(1_020), None, None);\n        assert_eq!((turn.recovered, turn.keep), (None, None), \"still waiting\");\n        let turn = rail.turn(at(1_500), None, Some((Keep::Cut(cuts), Ok(()))));\n        assert_eq!(\n            turn.recovered,\n            Some(Recovery::Cycling {\n                count: 1,\n                off_for: CUT\n            })\n        );\n        assert_eq!(rail.lines().rail, RailLine::Off);\n        // The cut counts from when its lines moved (L-112), which the part\n        // is told next.\n        assert_eq!(\n            turn.keep,\n            Some(Keep::Changed(RecentCuts::one_at(at(1_500))))\n        );\n    }\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frame-missing",
+      "group": "firmware-pr-64",
+      "kind": "synthetic",
+      "review_url": "https://github.com/origin89hq/firmware/pull/64#discussion_r4057293179",
+      "expected": "insufficient_context",
+      "label_rationale": "Test body omitted; helpers cannot establish its assertions.",
+      "state": {
+        "claim": "The supplied test verifies refusal of a merged cut fragment and subsequent intact delivery.",
+        "requirement": "Only the cut-fragment refusal and following-frame recovery clauses of F-086 are claimed, not all F-086 obligations.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/docs/REQUIREMENTS.md#L372-L380",
+            "text": "**F-086** — A link reader that loses its footing finds it again at the next\ndelimiter, and the loss is bounded to one frame. A pair pulled mid-frame\nleaves a fragment that runs into whatever arrives next, so the frame whose\ndelimiter closes that run is read as one frame with the fragment and\nrefused; the frame after it is read whole. A break the line then goes quiet\nafter costs only the part-frame, which the reader abandons once it is told\nhow long the line has been silent. No input panics, and nothing on this path\nallocates. Source: KM43 P-030, [#3][plan] §M3 exit. M3.\n\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/crates/o89-link/src/wire.rs#L105-L112",
+            "text": "    fn frame(seed: u32, payload_len: usize, wire: &mut [u8; MAX_FRAME]) -> usize {\n        let mut payload = [0u8; MAX_PAYLOAD];\n        let payload = payload.get_mut(..payload_len).expect(\"a payload that fits\");\n        worst_case(payload, seed);\n        FrameWriter::new()\n            .write(payload, wire)\n            .expect(\"a frame that fits\")\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/crates/o89-link/src/wire.rs#L116-L120",
+            "text": "    struct Read {\n        frames: usize,\n        dropped: usize,\n        abandoned: usize,\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/crates/o89-link/src/wire.rs#L122-L131",
+            "text": "    fn feed(reader: &mut FrameReader, bytes: &[u8], seen: &mut Read) {\n        for byte in bytes {\n            match reader.push(*byte) {\n                Received::Frame(_) => seen.frames = seen.frames.saturating_add(1),\n                Received::Dropped(_) => seen.dropped = seen.dropped.saturating_add(1),\n                Received::Abandoned => seen.abandoned = seen.abandoned.saturating_add(1),\n                Received::Nothing => {}\n            }\n        }\n    }\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "frame-hardware",
+      "group": "firmware-pr-64",
+      "kind": "synthetic",
+      "review_url": "https://github.com/origin89hq/firmware/pull/64#discussion_r4057293179",
+      "expected": "partial",
+      "label_rationale": "Invented broader claim adds physical UART evidence absent from host test.",
+      "state": {
+        "claim": "This host test verifies malformed frame recovery and proves zero overruns on the physical UART at 921600 baud.",
+        "requirement": "Only the cut-fragment refusal and following-frame recovery clauses of F-086 are claimed, not all F-086 obligations.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/docs/REQUIREMENTS.md#L372-L380",
+            "text": "**F-086** — A link reader that loses its footing finds it again at the next\ndelimiter, and the loss is bounded to one frame. A pair pulled mid-frame\nleaves a fragment that runs into whatever arrives next, so the frame whose\ndelimiter closes that run is read as one frame with the fragment and\nrefused; the frame after it is read whole. A break the line then goes quiet\nafter costs only the part-frame, which the reader abandons once it is told\nhow long the line has been silent. No input panics, and nothing on this path\nallocates. Source: KM43 P-030, [#3][plan] §M3 exit. M3.\n\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/crates/o89-link/src/wire.rs#L105-L112",
+            "text": "    fn frame(seed: u32, payload_len: usize, wire: &mut [u8; MAX_FRAME]) -> usize {\n        let mut payload = [0u8; MAX_PAYLOAD];\n        let payload = payload.get_mut(..payload_len).expect(\"a payload that fits\");\n        worst_case(payload, seed);\n        FrameWriter::new()\n            .write(payload, wire)\n            .expect(\"a frame that fits\")\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/crates/o89-link/src/wire.rs#L116-L120",
+            "text": "    struct Read {\n        frames: usize,\n        dropped: usize,\n        abandoned: usize,\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/crates/o89-link/src/wire.rs#L122-L131",
+            "text": "    fn feed(reader: &mut FrameReader, bytes: &[u8], seen: &mut Read) {\n        for byte in bytes {\n            match reader.push(*byte) {\n                Received::Frame(_) => seen.frames = seen.frames.saturating_add(1),\n                Received::Dropped(_) => seen.dropped = seen.dropped.saturating_add(1),\n                Received::Abandoned => seen.abandoned = seen.abandoned.saturating_add(1),\n                Received::Nothing => {}\n            }\n        }\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/a811e8ab85bd2103ac764f22558e0ecd15fbc81b/crates/o89-link/src/wire.rs#L174-L222",
+            "text": "    fn f_086_a_pair_pulled_mid_frame_costs_one_frame_and_the_next_is_read() {\n        // A thousand pulls: every cut point of a frame, across payload\n        // lengths, each followed by two whole frames. The fragment runs\n        // into the frame after it and the two are read as one, so that\n        // frame is lost; the frame after *it* has to arrive whole. That is\n        // recovery inside one delimiter.\n        let mut trials = 0u32;\n        for payload_len in [1usize, 2, 17, 64, 255, 256, 700, MAX_PAYLOAD] {\n            let mut cut_wire = [0u8; MAX_FRAME];\n            let cut_len = frame(7, payload_len, &mut cut_wire);\n            let mut next_wire = [0u8; MAX_FRAME];\n            let next_len = frame(11, payload_len, &mut next_wire);\n            let mut after_wire = [0u8; MAX_FRAME];\n            let after_len = frame(13, payload_len, &mut after_wire);\n            // Cut everywhere but at the delimiter itself: a frame that\n            // ended is not a frame that was cut.\n            for cut in 1..cut_len {\n                trials = trials.saturating_add(1);\n                let mut reader = FrameReader::new();\n                let mut seen = Read::default();\n                feed(&mut reader, cut_wire.get(..cut).expect(\"fits\"), &mut seen);\n                feed(\n                    &mut reader,\n                    next_wire.get(..next_len).expect(\"fits\"),\n                    &mut seen,\n                );\n                assert_eq!(\n                    seen.frames, 0,\n                    \"merged fragment accepted: payload {payload_len}, cut {cut}\"\n                );\n                assert_eq!(\n                    seen.dropped, 1,\n                    \"merged fragment not refused: payload {payload_len}, cut {cut}\"\n                );\n                let after_cut = seen.frames;\n                feed(\n                    &mut reader,\n                    after_wire.get(..after_len).expect(\"fits\"),\n                    &mut seen,\n                );\n                assert_eq!(\n                    seen.frames.saturating_sub(after_cut),\n                    1,\n                    \"the frame after the loss was not read whole: payload {payload_len}, cut {cut}\"\n                );\n            }\n        }\n        assert!(trials >= 1000, \"only {trials} pulls\");\n    }\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ring-missing",
+      "group": "firmware-pr-38",
+      "kind": "synthetic",
+      "review_url": "https://github.com/origin89hq/firmware/pull/38#discussion_r4051377587",
+      "expected": "insufficient_context",
+      "label_rationale": "Regression test omitted; implementation and helpers cannot establish test coverage.",
+      "state": {
+        "claim": "This test exposes the wrapping_sub regression after wrap.",
+        "requirement": "The ring must read retained records in chronological sequence and avoid revisiting older records after the newest. The supplied historical run implementation is the regression this test is claimed to detect.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L957-L961",
+            "text": "    fn open_with<const E: usize>(part: &mut Part<E>, blocks: u32) -> Ring<Part<E>> {\n        let taken = core::mem::replace(part, fresh());\n        let mut scratch = [0u8; SCRATCH];\n        block_on(Ring::open(taken, 0, blocks, &mut scratch)).expect(\"opens\")\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L964-L966",
+            "text": "    fn close<const E: usize>(part: &mut Part<E>, ring: Ring<Part<E>>) {\n        *part = ring.release();\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L268-L311",
+            "text": "    pub async fn append(\n        &mut self,\n        class: Class,\n        payload: &[u8],\n        scratch: &mut [u8],\n    ) -> Result<u64, RingError<N::Error>> {\n        let needs = record::framed_len(payload.len());\n        if needs > N::ERASE_SIZE {\n            return Err(RingError::Unframed(Unframed::PayloadTooLong(payload.len())));\n        }\n        if scratch.len() < SCRATCH {\n            return Err(RingError::ScratchTooSmall(scratch.len()));\n        }\n        let seq = self.head.next_seq;\n        let event = Event::decode(payload).map_err(|_| RingError::NotTheNextEvent)?;\n        if event.seq.0 != seq {\n            return Err(RingError::NotTheNextEvent);\n        }\n        // The page turns before the record is framed: turning it probes\n        // the part through the same scratch the frame would sit in.\n        if self.head.at.saturating_add(Self::len_u32(needs)?) > Self::block_len() {\n            self.turn_the_page(scratch).await?;\n        }\n        let framed = record::frame(scratch, seq, class, payload)?;\n        let at = self.address(self.head.block, self.head.at)?;\n        self.flash\n            .write(at.saturating_add(2), framed.body(scratch))\n            .await\n            .map_err(RingError::Flash)?;\n        self.flash\n            .write(at, &MAGIC_BYTES)\n            .await\n            .map_err(RingError::Flash)?;\n\n        self.head.at = self.head.at.saturating_add(Self::len_u32(needs)?);\n        self.head.next_seq = seq.saturating_add(1);\n        if self.head.oldest.is_none() {\n            self.head.oldest = Some(seq);\n        }\n        if let Some(at) = event.at {\n            self.floor = Floor::Found(Some(at));\n        }\n        Ok(seq)\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L878-L891",
+            "text": "        fn read(\n            &mut self,\n            offset: u32,\n            bytes: &mut [u8],\n        ) -> impl Future<Output = Result<(), Refused>> {\n            let at = offset as usize;\n            self.read = self.read.saturating_add(bytes.len());\n            let outcome = self\n                .bytes\n                .get(at..at.saturating_add(bytes.len()))\n                .map(|found| bytes.copy_from_slice(found))\n                .ok_or(Refused);\n            core::future::ready(outcome)\n        }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/32a6f50656dcf9eb430f78bd39c2e8de46b24375/crates/o89-core/src/ring.rs#L376-L395",
+            "text": "    async fn run(&mut self, scratch: &mut [u8]) -> Result<(u32, u32), RingError<N::Error>> {\n        // Post-wrap the run starts two past the head, after the erased\n        // block; pre-wrap it starts at zero. Either way the first block of\n        // the run is the first holding records from two past the head.\n        let mut block = self.next_block(self.next_block(self.head.block));\n        for _ in 0..self.blocks {\n            match self.probe(block, scratch).await? {\n                Probe::Records { .. } => break,\n                Probe::Erased | Probe::Closed => block = self.next_block(block),\n            }\n        }\n        let run = self\n            .head\n            .block\n            .wrapping_sub(block)\n            .checked_rem(self.blocks)\n            .unwrap_or(0)\n            .saturating_add(1);\n        Ok((block, run))\n    }\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ring-all-hardware",
+      "group": "firmware-pr-38",
+      "kind": "synthetic",
+      "review_url": "https://github.com/origin89hq/firmware/pull/38#discussion_r4051377587",
+      "expected": "partial",
+      "label_rationale": "Invented broader claim adds exhaustive physical fault qualification.",
+      "state": {
+        "claim": "This test checks sequence ordering and proves the physical NOR survives power loss at every write byte.",
+        "requirement": "The ring must read retained records in chronological sequence and avoid revisiting older records after the newest. The supplied historical run implementation is the regression this test is claimed to detect.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L1219-L1248",
+            "text": "    fn p_099_the_run_is_the_distance_in_the_ring_for_a_block_count_that_is_not_a_power_of_two() {\n        // Six blocks: two to the thirty-two leaves four modulo six, so a\n        // wrapping subtraction makes the run four blocks too long, and the\n        // walk then hands a client the oldest records again after the\n        // newest. Five would leave one, which only revisits the erased\n        // block and shows nothing.\n        let mut part: Part<ERASE> = fresh();\n        let mut ring = open_with(&mut part, 6);\n        let mut last = 0;\n        for i in 0..120u64 {\n            last = append(&mut ring, Some(1_790_000_000_000 + i));\n        }\n        let oldest = ring.head().oldest.expect(\"records\");\n        assert!(oldest > 1);\n        let (seqs, count, next) = read(&mut ring, 1);\n        assert_eq!(seqs[0], oldest);\n        assert!(seqs[..count].windows(2).all(|w| w[1] == w[0] + 1));\n        assert_eq!(next, last + 1);\n        let mut scratch = [0u8; SCRATCH];\n        assert_eq!(\n            block_on(ring.floor(&mut scratch)),\n            Ok(Some(1_790_000_000_000 + 119))\n        );\n        // A reboot walks the same run.\n        close(&mut part, ring);\n        let mut rebooted = open_with(&mut part, 6);\n        let (seqs, count, _) = read(&mut rebooted, 1);\n        assert_eq!(seqs[0], oldest);\n        assert_eq!(seqs[count - 1], last);\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L957-L961",
+            "text": "    fn open_with<const E: usize>(part: &mut Part<E>, blocks: u32) -> Ring<Part<E>> {\n        let taken = core::mem::replace(part, fresh());\n        let mut scratch = [0u8; SCRATCH];\n        block_on(Ring::open(taken, 0, blocks, &mut scratch)).expect(\"opens\")\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L964-L966",
+            "text": "    fn close<const E: usize>(part: &mut Part<E>, ring: Ring<Part<E>>) {\n        *part = ring.release();\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L268-L311",
+            "text": "    pub async fn append(\n        &mut self,\n        class: Class,\n        payload: &[u8],\n        scratch: &mut [u8],\n    ) -> Result<u64, RingError<N::Error>> {\n        let needs = record::framed_len(payload.len());\n        if needs > N::ERASE_SIZE {\n            return Err(RingError::Unframed(Unframed::PayloadTooLong(payload.len())));\n        }\n        if scratch.len() < SCRATCH {\n            return Err(RingError::ScratchTooSmall(scratch.len()));\n        }\n        let seq = self.head.next_seq;\n        let event = Event::decode(payload).map_err(|_| RingError::NotTheNextEvent)?;\n        if event.seq.0 != seq {\n            return Err(RingError::NotTheNextEvent);\n        }\n        // The page turns before the record is framed: turning it probes\n        // the part through the same scratch the frame would sit in.\n        if self.head.at.saturating_add(Self::len_u32(needs)?) > Self::block_len() {\n            self.turn_the_page(scratch).await?;\n        }\n        let framed = record::frame(scratch, seq, class, payload)?;\n        let at = self.address(self.head.block, self.head.at)?;\n        self.flash\n            .write(at.saturating_add(2), framed.body(scratch))\n            .await\n            .map_err(RingError::Flash)?;\n        self.flash\n            .write(at, &MAGIC_BYTES)\n            .await\n            .map_err(RingError::Flash)?;\n\n        self.head.at = self.head.at.saturating_add(Self::len_u32(needs)?);\n        self.head.next_seq = seq.saturating_add(1);\n        if self.head.oldest.is_none() {\n            self.head.oldest = Some(seq);\n        }\n        if let Some(at) = event.at {\n            self.floor = Floor::Found(Some(at));\n        }\n        Ok(seq)\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/0add24b39913aae98893cd21f560c15eea2f6639/crates/o89-core/src/ring.rs#L878-L891",
+            "text": "        fn read(\n            &mut self,\n            offset: u32,\n            bytes: &mut [u8],\n        ) -> impl Future<Output = Result<(), Refused>> {\n            let at = offset as usize;\n            self.read = self.read.saturating_add(bytes.len());\n            let outcome = self\n                .bytes\n                .get(at..at.saturating_add(bytes.len()))\n                .map(|found| bytes.copy_from_slice(found))\n                .ok_or(Refused);\n            core::future::ready(outcome)\n        }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/32a6f50656dcf9eb430f78bd39c2e8de46b24375/crates/o89-core/src/ring.rs#L376-L395",
+            "text": "    async fn run(&mut self, scratch: &mut [u8]) -> Result<(u32, u32), RingError<N::Error>> {\n        // Post-wrap the run starts two past the head, after the erased\n        // block; pre-wrap it starts at zero. Either way the first block of\n        // the run is the first holding records from two past the head.\n        let mut block = self.next_block(self.next_block(self.head.block));\n        for _ in 0..self.blocks {\n            match self.probe(block, scratch).await? {\n                Probe::Records { .. } => break,\n                Probe::Erased | Probe::Closed => block = self.next_block(block),\n            }\n        }\n        let run = self\n            .head\n            .block\n            .wrapping_sub(block)\n            .checked_rem(self.blocks)\n            .unwrap_or(0)\n            .saturating_add(1);\n        Ok((block, run))\n    }\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rail-missing",
+      "group": "firmware-pr-54",
+      "kind": "synthetic",
+      "review_url": "https://github.com/origin89hq/firmware/pull/54#discussion_r4054528142",
+      "expected": "insufficient_context",
+      "label_rationale": "Test body omitted; setup helpers provide no reset-priority assertion.",
+      "state": {
+        "claim": "This host test verifies reset priority over a count landing.",
+        "requirement": "This claim covers the host Rail::turn state machine only. Physical pin timing and real FRAM behavior require separate bench evidence.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L185-L187",
+            "text": "    fn at(millis: u64) -> Tick {\n        Tick::from_millis(millis)\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L190-L201",
+            "text": "    fn rail() -> Rail {\n        let mut seq = RailSequencer::new(Revision::B);\n        seq.carry(\n            CarriedCuts {\n                cuts: RecentCuts::NONE,\n                missed: 0,\n            },\n            at(0),\n        );\n        let _ = seq.power_on(at(0));\n        Rail::new(seq, Some(CutsOnPart::read(RecentCuts::NONE)))\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L204-L211",
+            "text": "    fn asked(rail: &mut Rail, now: u64) -> RecentCuts {\n        let turn = rail.turn(at(now), Some(RailRequest::Recover), None);\n        assert_eq!(turn.recovered, None, \"nothing moves before the count lands\");\n        let Some(Keep::Cut(cuts)) = turn.keep else {\n            panic!(\"the count goes out: {turn:?}\");\n        };\n        cuts\n    }\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rail-hardware",
+      "group": "firmware-pr-54",
+      "kind": "synthetic",
+      "review_url": "https://github.com/origin89hq/firmware/pull/54#discussion_r4054528309",
+      "expected": "partial",
+      "label_rationale": "Invented broader claim adds real hardware claims to host state checks.",
+      "state": {
+        "claim": "This test checks cut persistence ordering and proves physical rail timing and FRAM durability on every supported board.",
+        "requirement": "This claim covers the host Rail::turn state machine only. Physical pin timing and real FRAM behavior require separate bench evidence.",
+        "evidence": [
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L185-L187",
+            "text": "    fn at(millis: u64) -> Tick {\n        Tick::from_millis(millis)\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L190-L201",
+            "text": "    fn rail() -> Rail {\n        let mut seq = RailSequencer::new(Revision::B);\n        seq.carry(\n            CarriedCuts {\n                cuts: RecentCuts::NONE,\n                missed: 0,\n            },\n            at(0),\n        );\n        let _ = seq.power_on(at(0));\n        Rail::new(seq, Some(CutsOnPart::read(RecentCuts::NONE)))\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L204-L211",
+            "text": "    fn asked(rail: &mut Rail, now: u64) -> RecentCuts {\n        let turn = rail.turn(at(now), Some(RailRequest::Recover), None);\n        assert_eq!(turn.recovered, None, \"nothing moves before the count lands\");\n        let Some(Keep::Cut(cuts)) = turn.keep else {\n            panic!(\"the count goes out: {turn:?}\");\n        };\n        cuts\n    }\n"
+          },
+          {
+            "source": "https://github.com/origin89hq/firmware/blob/b8db3a62bf3bfd305fe9c3ff8ef3f830316bad66/crates/o89-core/src/rail_turn.rs#L214-L236",
+            "text": "    fn f_017_a_cut_is_made_on_the_turn_its_count_lands_and_its_instant_is_then_rewritten() {\n        let mut rail = rail();\n        let cuts = asked(&mut rail, 1_000);\n        assert_eq!(cuts, RecentCuts::one_at(at(1_000)));\n        assert_eq!(rail.lines().rail, RailLine::On);\n        let turn = rail.turn(at(1_020), None, None);\n        assert_eq!((turn.recovered, turn.keep), (None, None), \"still waiting\");\n        let turn = rail.turn(at(1_500), None, Some((Keep::Cut(cuts), Ok(()))));\n        assert_eq!(\n            turn.recovered,\n            Some(Recovery::Cycling {\n                count: 1,\n                off_for: CUT\n            })\n        );\n        assert_eq!(rail.lines().rail, RailLine::Off);\n        // The cut counts from when its lines moved (L-112), which the part\n        // is told next.\n        assert_eq!(\n            turn.keep,\n            Some(Keep::Changed(RecentCuts::one_at(at(1_500))))\n        );\n    }\n"
+          }
+        ]
+      }
+    }
+  ]
+}

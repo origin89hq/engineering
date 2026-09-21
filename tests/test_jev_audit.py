@@ -80,6 +80,9 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(report["correct"], 1)
         self.assertEqual(report["confusion"]["partial"]["partial"], 1)
         self.assertEqual(report["results"][0]["action"], "inspect_gap")
+        self.assertEqual(report["review_required"], 6)
+        self.assertEqual(report["uncertain_or_failed"], 5)
+        self.assertEqual(report["flagged_gaps"], 1)
         entry = record["observations"][0]
         entry.update(id=self.cases[1]["id"], request_sha256=self.requests["requests"][1]["request_sha256"])
         report = self.evaluate(record)
@@ -171,6 +174,38 @@ class AuditTests(unittest.TestCase):
         report = audit.evaluate(self.cases[:1], MODEL, record, 0.8, 2, 4)
         self.assertFalse(report["usage_complete"])
         self.assertIsNone(report["estimated_recorded_cost_usd"])
+
+    def test_live_hundredth_rounding_is_preserved_without_normalizing(self):
+        for probabilities, valid in (([0.17, 0.81, 0.0, 0.01], True),
+                                     ([0.17, 0.81, 0.02, 0.01], True),
+                                     ([0.16, 0.80, 0.0, 0.0], False),
+                                     ([0.20, 0.81, 0.02, 0.01], False),
+                                     ([0.1701, 0.81, 0.0, 0.01], False)):
+            with self.subTest(probabilities=probabilities):
+                record = self.recording("partial", 0.75)
+                distribution = dict(zip(audit.LABELS, probabilities))
+                record["observations"][0]["response"]["answers"]["coverage"]["probabilities"] = distribution
+                report = self.evaluate(record)
+                self.assertEqual(report["results"][0]["status"], "answered" if valid else "invalid")
+                if valid:
+                    self.assertTrue(report["results"][0]["rounded_probabilities"])
+                    self.assertAlmostEqual(report["results"][0]["probability_sum"], sum(probabilities))
+                    self.assertEqual(report["results"][0]["action"], "needs_review")
+
+    def test_expanded_corpus_and_group_reporting_preserve_all_cases(self):
+        cases = audit.cases_from(audit.load_json(CASES.with_name("expanded.json")))
+        requests = audit.prepare(cases, MODEL)
+        self.assertEqual(len(requests["requests"]), 24)
+        report = audit.evaluate(cases, MODEL, {"version": 1, "origin": "synthetic", "observations": []}, 0.8)
+        self.assertEqual(len(report["by_group"]), 4)
+        self.assertEqual(sum(group["cases"] for group in report["by_group"].values()), 24)
+        self.assertEqual(sum(group["review_required"] for group in report["by_group"].values()), 24)
+        self.assertEqual(report["by_group"]["km43-pr-43"]["cases"], 12)
+        changed = copy.deepcopy(cases)
+        changed[0]["expected"] = "supported"
+        modified = audit.evaluate(changed, MODEL, {"version": 1, "origin": "synthetic", "observations": []}, 0.8)
+        self.assertNotEqual(report["case_annotations_sha256"], modified["case_annotations_sha256"])
+        self.assertEqual(requests, audit.prepare(changed, MODEL))
 
     def test_invalid_case_metadata_and_request_bounds(self):
         for variant in ("duplicate", "empty", "label", "unexpected_state", "too_large"):

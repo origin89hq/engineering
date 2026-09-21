@@ -105,10 +105,15 @@ calibrated release policy. Optional `--input-price` and `--output-price` take
 USD per million tokens; provide both after checking current pricing.
 
 The report includes valid-answer accuracy, the correct fraction of all cases,
-a confusion matrix, false gap flags, false reassurance, review workload,
-known usage, and recorded latency. Counts are also separated by review-derived
+a confusion matrix, false gap flags, false reassurance, review workload (both flagged gaps and
+uncertain/failed cases),
+known usage, and recorded latency. Group summaries and a hash of the case
+annotations preserve the comparison across related examples. Counts are also separated by review-derived
 and synthetic case kind. Missing, stale, malformed, or failed answers
-remain explicit rows requiring review. Low confidence and insufficient context
+remain explicit rows requiring review. Live responses may round probabilities
+to hundredths: the validator accepts a non-unit sum only when those rounding
+intervals can contain one. It retains the raw values and flags the row as
+`rounded_probabilities`; larger or unexplained discrepancies remain invalid. Low confidence and insufficient context
 also require review. `no_gap_indicated` means only that this question raised no
 gap; it never grants merge approval. Exit zero means the report was produced,
 not that a PR passed. Savings remain unknown without a measured baseline.
@@ -128,7 +133,14 @@ coverage remains partial because the permanent recovery window is not tested.
 Other controls cover a deliberately overstated claim, missing helper context,
 an unrelated assertion, and a source comment that tries to dictate the answer.
 
-All six cases share one PR group. They are development examples, not an
+The separate [expanded corpus](../tests/fixtures/jev-audit/expanded.json) adds
+24 cases across four other PR groups; its provenance and pre-run screening
+criteria are in the fixture notice. Keep these results separate from the original
+six development cases. For live evaluation, prepare reviewed subsets of at most
+six cases and run each subset explicitly; preserve IDs and recombine observations
+against the unchanged complete case file for the final report.
+
+All six original cases share one PR group. They are development examples, not an
 independent benchmark. Labels were prepared from the review and correction;
 they have not received a separate human labeling pass. Existing source comments
 can reveal the author's coverage assessment, so a live evaluation must also
