@@ -12,7 +12,7 @@ Start with [contributing](CONTRIBUTING.md) and the [adoption guide](docs/adoptin
 | [Documentation](docs/documentation.md) | Useful docs, private research, and maintenance cost |
 | [Working practices](docs/development.md) | Complete work, deliberate commands, AI-assisted development, review |
 | [AI review setup](docs/code-review.md) | Codex and Copilot reviews, with optional `@claude` requests |
-| [Offline JEV audit pilot](docs/jev-audit.md) | Prepare requirement-coverage questions and evaluate saved responses |
+| [JEV audit pilot](docs/jev-audit.md) | Prepare requirement-coverage questions, run a bounded live batch, and evaluate responses |
 | [Rust](docs/rust.md) | Typed domain models, ownership, errors, unsafe code, verification |
 | [Node and TypeScript](docs/typescript.md) | pnpm, strict types, runtime validation, async behavior |
 | [Tooling](docs/tooling.md) | Preferred stack for web, native, and firmware work; repository commands |

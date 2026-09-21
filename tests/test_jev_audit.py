@@ -160,6 +160,18 @@ class AuditTests(unittest.TestCase):
             with self.subTest(price=price), self.assertRaises(audit.Invalid):
                 audit.evaluate(cases, MODEL, record, 0.8, price, 0)
 
+    def test_malformed_answer_retains_complete_recorded_cost(self):
+        record = self.recording()
+        record["observations"][0]["response"]["answers"] = {}
+        report = audit.evaluate(self.cases[:1], MODEL, record, 0.8, 2, 4)
+        self.assertEqual(report["status_counts"]["invalid"], 1)
+        self.assertTrue(report["usage_complete"])
+        self.assertAlmostEqual(report["estimated_recorded_cost_usd"], 0.00208)
+        record["observations"][0]["response"]["usage"]["input_tokens"] = None
+        report = audit.evaluate(self.cases[:1], MODEL, record, 0.8, 2, 4)
+        self.assertFalse(report["usage_complete"])
+        self.assertIsNone(report["estimated_recorded_cost_usd"])
+
     def test_invalid_case_metadata_and_request_bounds(self):
         for variant in ("duplicate", "empty", "label", "unexpected_state", "too_large"):
             with self.subTest(variant=variant):

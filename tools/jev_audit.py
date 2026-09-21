@@ -53,7 +53,10 @@ def load_json(path):
     with Path(path).open("rb") as stream:
         data = stream.read(MAX_FILE_BYTES + 1)
     require(len(data) <= MAX_FILE_BYTES, "JSON file exceeds the byte limit")
+    return decode_json(data)
 
+
+def decode_json(data):
     def unique(pairs):
         result = {}
         for key, value in pairs:
@@ -185,6 +188,7 @@ def evaluate(cases, model, recording, threshold, input_price=None, output_price=
     for case in cases:
         row = {"id": case["id"], "group": case["group"], "kind": case["kind"], "expected": case["expected"], "status": "missing", "action": "needs_review", "sources": [item["source"] for item in case["state"]["evidence"]]}
         observation = by_id.get(case["id"])
+        has_usage = False
         if observation is not None:
             try:
                 require(observation.get("request_sha256") == requests[case["id"]]["request_sha256"], "stale or mismatched request hash")
@@ -203,6 +207,7 @@ def evaluate(cases, model, recording, threshold, input_price=None, output_price=
                     except Invalid:
                         usage_complete = False
                     else:
+                        has_usage = True
                         for key in tokens:
                             tokens[key] += usage[key]
                     choice, confidence = answer_from(response, model)
@@ -212,7 +217,8 @@ def evaluate(cases, model, recording, threshold, input_price=None, output_price=
                     row.update(status="answered", choice=choice, confidence=confidence, correct=choice == case["expected"], action=action)
             except Invalid as error:
                 row.update(status="invalid", reason=str(error))
-                usage_complete = False
+                if not has_usage:
+                    usage_complete = False
         else:
             usage_complete = False
         rows.append(row)

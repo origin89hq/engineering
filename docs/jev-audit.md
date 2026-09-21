@@ -1,9 +1,10 @@
-# Offline JEV requirement audit pilot
+# JEV requirement audit pilot
 
 The pilot asks whether supplied tests support a stated requirement-coverage
 claim. It prepares TypeSafe Choice requests and evaluates saved responses. It
-does not call an API, inspect a live PR, execute source excerpts, post comments,
-or install a CI workflow. Normal `just check` remains offline.
+has an explicitly invoked live runner for a small smoke test. It does not inspect
+a live PR, execute source excerpts, post comments, or install a CI workflow.
+Normal `just check` remains offline.
 
 The first consumer is firmware requirement review. A source parser can establish
 that a compiled test cites a requirement and contains an assertion. This pilot
@@ -33,6 +34,40 @@ paths mentioned in excerpts. Requests have a 60,000-byte limit, at most 12
 excerpts per case, and at most 64 cases per invocation. Oversized requests fail
 without truncation. These are local byte bounds, not measured token counts or
 a substitute for checking the provider's current context limits before live use.
+
+## Run a live smoke test
+
+Only run this command after approving the case evidence for transmission to
+TypeSafe. The bundled cases contain pinned firmware excerpts and synthetic
+controls. The separate runner uses the same request bodies as `prepare` and
+sends no labels or review conclusions.
+
+Store `TYPESAFE_API_KEY=value` in a private file outside the repository, such as
+`~/.config/origin89/typesafe.env`, with permissions `600`. The runner reads this
+as a single literal assignment; it does not execute shell syntax. Alternatively,
+omit `--api-key-file` and supply `TYPESAFE_API_KEY` through the environment.
+
+```sh
+python3 tools/jev_audit_live.py \
+  --cases tests/fixtures/jev-audit/cases.json \
+  --model jev-1.13.0 \
+  --api-key-file ~/.config/origin89/typesafe.env \
+  --max-calls 6 \
+  --output /tmp/jev-live.json
+```
+
+The output must not already exist. The runner creates it with mode `600`, saves
+each completed attempt, and stops on the first service or invalid-answer failure.
+There are at most six calls per invocation, no automatic retries, no redirects,
+a fixed HTTPS endpoint, 20-second socket timeouts, and a 64,000-byte response
+limit. Request bounds still apply. The call limit bounds usage, not a guaranteed
+dollar amount; check provider pricing before running. A timeout may still incur
+provider charges, which remain unknown without reported usage. Do not blindly
+rerun a failed batch. An interrupted run can leave incomplete output; inspect it
+before any further paid attempt.
+
+Evaluate the recording using the command below. A smoke test can reveal concrete
+failures; six related cases cannot establish general accuracy or savings.
 
 ## Evaluate a recording
 
@@ -106,8 +141,8 @@ reviewed PRs with both valid coverage and real gaps. Separate tuning and held-ou
 examples by PR group, keeping before/after variants together. Set acceptance
 criteria before examining held-out results. Compare false reassurance, detection,
 false alarms, abstention, reviewer time, latency, and total cost with the existing
-review process. A later live runner needs explicit authorization for source data,
-credentials, spend, retries, and collection of usage. CI adoption is a separate
+review process. Live runs need authorization for source data, credentials, spend, and collection
+of usage. The runner does not retry failures. CI adoption is a separate
 step after these measurements; keep existing compiler, test, and review gates.
 
 ## Maintenance and checks
