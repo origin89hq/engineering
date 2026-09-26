@@ -127,8 +127,9 @@ PRs merge without rework.
 ## Issue hygiene
 
 A daily job whose precheck continues when issues or PRs changed since the
-previous day, or when an open issue has had no activity for 60 days, so quiet
-repositories still get the stale check. It checks open issues for: a linked PR that merged, a parent whose
+previous day, when an open issue has had no activity for 60 days, or when a
+closed issue still carries `agent-ready`, `agent-working` or `needs-spec`, so
+quiet repositories still get those checks. It checks open issues for: a linked PR that merged, a parent whose
 sub-issues are all closed, likely duplicates, a missing done condition, work
 that should be split into sub-issues, readiness for `agent-ready`, and no
 activity for 60 days. It also reports closed issues that still carry
