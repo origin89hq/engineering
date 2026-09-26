@@ -93,11 +93,12 @@ only when the user asks for recurring work, and check
 
 When one agent family's usage runs higher, the user may shift routine jobs to
 the other family. This is weighted routing, not alternation, and the user's
-latest choice wins. Keep independent review cross-family: a
-change never gets its fresh review, panel seat, or merge-gate verdict from the
-family that implemented it, whatever the usage balance. For example, while Codex
-usage is higher, run idle pickup, needs-spec triage, and issue hygiene on
-Claude, and keep the merge gate and independent reviews on Codex.
+latest choice wins. Routing never removes independent review: where a rule
+above calls for one, at least one reviewer comes from a family other than the
+implementer's. Panels, races, and hosted review keep their own rules. For
+example, while Codex usage is higher, run idle pickup, needs-spec triage, and
+issue hygiene on Claude, and keep the merge gate and the fresh reviews of those
+Claude patches on Codex. That is the current routing, not a permanent split.
 
 Supported controls, as `--help` shows them:
 
@@ -109,19 +110,34 @@ Supported controls, as `--help` shows them:
   only for a model the user named. Report the receipt's `launch.effective`,
   not the requested arguments.
 
+A provider or model change applies to new sessions and launches only. Never
+restart a running worker or session to change its model. A job with
+`--reuse-session` submits later runs to its previous live session, so a
+provider edit alone can keep an old Codex coordinator in charge. Cut over
+without a second consumer: disable the job, let the old session settle or hand
+off as below, then switch provider and session together, run once, and read
+back the result before enabling:
+
 ```sh
-orca automations edit <pickup-job-id> --provider claude --json
-orca automations show <pickup-job-id> --json   # read back the saved provider
+orca automations edit <job-id> --disabled --json
+orca automations edit <job-id> --provider claude --fresh-session --json
+orca automations run <job-id>
+orca automations show <job-id> --json   # saved provider and session mode
+orca automations edit <job-id> --enabled --json
 ```
 
-A provider or model change applies to new sessions and launches only. Never
-restart a running worker or session to change its model. A running coordinator
-moves to a new session only through one consumer at a time: the old coordinator
-writes a checkpoint and stops consuming its Run inbox, the new session binds
-with `orca orchestration run-use --id <run_id>`, confirms the binding with
-`run-current`, and records its acceptance beside the checkpoint. Workers keep
-running throughout. Until the old coordinator's exit is proven, it keeps the
-Run; do not take over.
+Restore `--reuse-session` only after the new session has taken over.
+
+A running coordinator moves to a new session only when the old one explicitly
+relinquishes its Run: it writes a checkpoint, stops consuming its inbox, and
+records the release. The new session binds with
+`orca orchestration run-use --id <run_id>`, confirms with `run-current`, and
+records its acceptance beside the checkpoint. Workers keep running throughout.
+If a command returns `consumer_fenced`, or the old owner cannot relinquish,
+do not treat an ordinary `run-use` as the transfer; follow the exact recovery
+the orchestration guide and the receipt give. A quiet or exited terminal is not
+a relinquishment, and a live one is not proof of ownership. Never take over
+while the old coordinator is actively coordinating.
 
 Keep the checkpoint and scheduled-run context small: Run ID, each open Dispatch
 with its Task and state, unacknowledged deliveries, claims, pending decisions,
@@ -130,14 +146,15 @@ that carries no state change.
 
 ### Accounts
 
-`orca account list` shows the managed Claude and Codex accounts on a host, and
-`orca account add` registers another by signing in. The CLI has no flag that
-picks the account for an automation or worker. Rotating accounts a few times a
-day is a user choice among existing accounts the user is authorized to use,
-made at run boundaries: between automation runs and before new launches,
-never inside a running session. Never copy credentials, tokens, or login state
-between accounts or hosts. Do not claim a switch reset usage, or state an
-account's remaining quota, without fresh attribution from the provider.
+Account rotation is not enabled. `orca account list` shows the managed Claude
+and Codex accounts on a host, and `orca account add` registers another by
+signing in, but no supported selector picks the account for an automation or
+worker. Until one exists, do not switch accounts as part of a job or tell the
+user a job rotates them. Once a selector exists, choose only among existing
+accounts the user is authorized to use, at run boundaries, never inside a
+running session. Never copy credentials, tokens, or login state between
+accounts or hosts. Do not claim a switch reset usage, or state an account's
+remaining quota, without fresh attribution from the provider.
 
 ## Issue labels
 
