@@ -98,6 +98,10 @@ to label it again. `human-only` stays. GitHub starts no workflow for an event
 caused by `GITHUB_TOKEN`, so an issue another workflow closes keeps its labels;
 the issue hygiene job reports those.
 
+Repositories that run the
+[merge gate](../skills/origin89-orca/references/unattended-run.md#merge-gate)
+also create the `needs-human-review` PR label.
+
 ## Biome and just
 
 Merge `templates/typescript/biome.json` and
