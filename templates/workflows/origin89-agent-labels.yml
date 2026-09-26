@@ -21,9 +21,12 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ github.event.issue.number }}
+        # Read the labels now rather than from the event, so a rerun after a
+        # partial failure skips what the first attempt already removed.
         run: |
+          current=$(gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE/labels" --paginate --jq '.[].name')
           for label in agent-ready agent-working needs-spec; do
-            if jq -e --arg l "$label" 'any(.issue.labels[]; .name == $l)' "$GITHUB_EVENT_PATH" > /dev/null; then
+            if grep -qxF "$label" <<< "$current"; then
               gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$ISSUE/labels/$label" > /dev/null
             fi
           done
