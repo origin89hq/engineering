@@ -89,6 +89,75 @@ only when the user asks for recurring work, and check
 - Name the job's owner and purpose. List and remove jobs that no longer earn
   their cost.
 
+## Balance agent families
+
+When one agent family's usage runs higher, the user may shift routine jobs to
+the other family. This is weighted routing, not alternation, and the user's
+latest choice wins. Routing never removes independent review: where a rule
+above calls for one, at least one reviewer comes from a family other than the
+implementer's. Panels, races, and hosted review keep their own rules. For
+example, while Codex usage is higher, run idle pickup, needs-spec triage, and
+issue hygiene on Claude, and keep the merge gate and the fresh reviews of those
+Claude patches on Codex. A Codex-implemented change in the same queue still
+gets its independent review from Claude; the Codex gate's verdict does not
+count as that review. That is the current routing, not a permanent split.
+
+Supported controls, as `--help` shows them:
+
+- `orca automations create|edit --provider <agent>` picks the family of the
+  job's session. Automations have no model or account flag, and prompt text
+  cannot select either, so the session runs the provider's configured default.
+- `orca orchestration worker-start --agent <agent> --model <id> [--effort <level>]`
+  picks a worker's family and, for Claude and Codex, its model. Pass `--model`
+  only for a model the user named. Report the receipt's `launch.effective`,
+  not the requested arguments.
+
+A provider or model change applies to new sessions and launches only. Never
+restart a running worker or session to change its model. A job with
+`--reuse-session` submits later runs to its previous live session, so a
+provider edit alone can keep an old Codex coordinator in charge. Cut over
+without a second consumer: disable the job, let the old session settle or hand
+off as below, then switch provider and session together, run once, and read
+back the result before enabling:
+
+```sh
+orca automations edit <job-id> --disabled --json
+orca automations edit <job-id> --provider claude --fresh-session --json
+orca automations run <job-id>
+orca automations show <job-id> --json   # saved provider and session mode
+orca automations edit <job-id> --enabled --json
+```
+
+Restore `--reuse-session` only after the new session has taken over.
+
+A running coordinator moves to a new session only when the old one explicitly
+relinquishes its Run: it writes a checkpoint, stops consuming its inbox, and
+records the release. The new session binds with
+`orca orchestration run-use --id <run_id>`, confirms with `run-current`, and
+records its acceptance beside the checkpoint. Workers keep running throughout.
+If a command returns `consumer_fenced`, or the old owner cannot relinquish,
+do not treat an ordinary `run-use` as the transfer; follow the exact recovery
+the orchestration guide and the receipt give. A quiet or exited terminal is not
+a relinquishment, and a live one is not proof of ownership. Never take over
+while the old coordinator is actively coordinating.
+
+Keep the checkpoint and scheduled-run context small: Run ID, each open Dispatch
+with its Task and state, unacknowledged deliveries, claims, pending decisions,
+and the next action. Leave out heartbeat-only messages and repeated status
+that carries no state change.
+
+### Accounts
+
+Account rotation is not enabled. `orca account list` shows the managed Claude
+and Codex accounts on a host, and `orca account add` registers another by
+signing in, but no supported selector picks the account for an automation or
+worker. Until one exists, do not switch accounts as part of a job or tell the
+user a job rotates them. Once a selector exists, choose only among existing
+accounts the user is authorized to use, at run boundaries, never inside a
+running session. Never copy credentials, tokens, or login state between
+accounts or hosts. Do not claim a switch reset usage, or state an account's
+remaining quota, without fresh attribution from the provider.
+
 ## Issue labels
 
 Scheduled issue work uses four labels in each adopting repository:
