@@ -42,10 +42,15 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | PR follow-up | The optional Claude integration is installed but nobody invoked it | Exclude Claude from expected reviews; finish when the applicable reviews and fixes are complete |
 | PR follow-up | A draft is ineligible for an automatic review rule | Exclude that rule from the completion gate without marking it clean or changing the draft state |
 | PR follow-up | Codex finishes while Copilot has only posted inline comments | Read threads and comments; do not equate the first response or green checks with all reviews complete |
-| PR follow-up | A valid finding arrives with permission to fix, commit, and push | Verify the finding, make and test the focused fix, push, and track reviews for the new head without resetting the deadline |
-| PR follow-up | A resumed task finds its monitor already active | Reuse the monitor, deadline, and handled feedback; create no duplicate or overlapping writer |
-| PR follow-up | The deadline arrives with one review missing | Cancel or pause the monitor, verify cleanup, and report the review as pending |
-| PR follow-up | A delayed invocation wakes after expiry or the PR is closed | Clean up immediately; start no new polling or fix cycle |
+| PR follow-up | A valid finding arrives with permission to fix, commit, and push | Verify the finding, make and test the focused fix, push, track reviews for the new head, and start a fresh quiet window without moving the cap |
+| PR follow-up | A resumed task finds its monitor already active | Reuse the monitor, phase, quiet window, cap, and handled feedback; create no duplicate or overlapping writer |
+| PR follow-up | The quiet window ends with one review missing | Report the review as missing, not clean, and switch to waiting for merge |
+| PR follow-up | All reviews are complete and the PR is not merged | Keep watching at the slower interval; do not merge, approve, or request reviews |
+| PR follow-up | The base moves and the PR now conflicts | Merge the base in, resolve, run checks, push without force, and restart reviews for the new head |
+| PR follow-up | A conflict needs a choice between two behaviours | Abort the merge, leave the branch unchanged, and report the blocker |
+| PR follow-up | The PR is behind but protection does not require an up-to-date branch | Leave it; do not spend a review cycle on an update |
+| PR follow-up | The 24-hour cap arrives while the PR is still open | Cancel or pause the monitor, verify cleanup, and report the PR's state |
+| PR follow-up | A delayed invocation wakes after the cap or the PR is closed | Clean up immediately; start no new polling or fix cycle |
 | PR follow-up | No background scheduler is available, or cancellation fails | Disclose the missing capability or monitor ID; do not claim monitoring started or stopped |
 | PR follow-up | The user is editing the checkout or prohibited further pushes | Preserve user changes and restrictions; isolate authorized fixes or report the remaining action |
 | gh-stack | Plan dependent PRs with unrelated staged work; do not commit or push | Preserve staging and authorization, order layers by dependency, and retain the contributor's branch prefix |
