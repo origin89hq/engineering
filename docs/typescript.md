@@ -55,10 +55,13 @@ Build types so invalid values cannot be constructed:
 - Replace a bag of optional fields with variants. `{ done: boolean; doneAt?: Date }`
   admits `done: true` without a time; `{ kind: 'open' } | { kind: 'done'; at: Date }`
   does not.
-- Brand IDs and units that share a primitive, such as `string & { readonly __brand: 'DeviceId' }`.
-  Create them only in the validating parser.
-- End every `switch` on a union with `const unhandled: never = value;` so a new
-  variant fails compilation at each consumer.
+- Brand IDs and units that share a primitive when mixing them is a real risk,
+  such as `string & { readonly __brand: 'DeviceId' }`. Create them only in the
+  validating parser.
+- End every `switch` on a union with a `default` branch that assigns the value
+  to `never` and throws, so a new variant fails compilation at each consumer:
+  `default: { const unhandled: never = state; throw new Error(\`Unhandled state: ${JSON.stringify(unhandled)}\`); }`.
+  An unused `never` binding fails Biome's unused-variable lint.
 - Use `satisfies` to check a literal without widening it. Use `as` only after
   validation has proved the claim. A type guard must check every property it
   asserts; a guard that lies is worse than a cast.

@@ -21,10 +21,11 @@ reason before the fix where practical. Assert exact results, error variants, sta
 changes, and forbidden side effects. Never compute expectations with the same
 logic being tested or replace useful assertions with existence checks.
 
-Before keeping a test, ask whether it would still pass if every function it
-imports returned `undefined` or a default. If so, it observes no behavior. Common
-causes are assertions only that a mock was called, restated constants or prompt
-strings, and checks of fixture data the subject never processed. Assert the
+Before keeping a test, ask whether it would still pass if the subject's output
+or side effect were wrong. If so, it observes no behavior; fuzz and property
+harnesses whose property is "never panics" are the exception. Common causes are
+assertions only that a mock was called, restated constants or prompt strings,
+and checks of fixture data the subject never processed. Assert the
 payload or resulting state instead, or delete the test.
 
 Test the implementation itself. Mock external boundaries selectively and verify

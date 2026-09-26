@@ -30,8 +30,10 @@ formatting preference.
 Check every claim against the evidence. Preserve uncertainty, prerequisites,
 version context, and limitations. Do not invent measurements, sources, commands,
 or user benefits. Distinguish prepared, tested, merged, published, and verified
-on hardware. Mark each result as measured, inferred, or a guess in the sentence
-that states it. Never claim zero errors or certification from tests or AI review.
+on hardware. When the basis of a claim is not obvious, such as a root cause,
+performance, or hardware behavior, say whether it was measured, inferred, or a
+guess. A named command and its result already show a measurement. Never claim
+zero errors or certification from tests or AI review.
 
 For engineering results, explain what changed, why, the checks actually run, and
 material gaps. For PRs, describe the concrete problem and final behavior. For

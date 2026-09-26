@@ -25,25 +25,38 @@ so never make a panel a required review step.
 
 ## Set up the run
 
+Resolve the Orca executable once and use it for every command. Use
+`ORCA_CLI_COMMAND` when set; otherwise `orca-dev` in an Orca dev checkout;
+otherwise, on Linux outside an Orca terminal, `orca-ide`, because `orca` there can
+start the GNOME screen reader; otherwise `orca`. The examples here say `orca`.
+If `orca status --json` fails, report the exact error and continue with one agent.
+
 Load the version-matched guide with `orca skills get orchestration` and follow its
-supervised loop, task-spec contract, and completion accounting. On Linux outside
-an Orca terminal, `orca` can be the GNOME screen reader; use `ORCA_CLI_COMMAND` or
-`orca-ide` as that guide describes. Do not restate or guess flags it does not show.
+supervised loop, task-spec contract, and completion accounting. Do not guess flags
+it and `--help` do not show.
 
 Every worker spec must stand alone. In addition to Orca's target, change,
 constraints, ownership, and acceptance fields, it names:
 
-- the Origin89 skills to read: `origin89-working` plus the domain skill;
+- the Origin89 skills to read: `origin89-working` plus the domain skills;
 - base and head SHAs, file paths, and commands, not pasted file contents;
+- a report path outside the repository, passed as `--report-path` in
+  `worker_done`, for anything longer than the three-sentence summary;
 - the authorization it inherits: edit, commit, push, open PR, or none. A worker
   never gains authority the coordinator lacks. Workers never flash firmware or
-  operate equipment; raise a decision gate to the user instead.
+  operate equipment. They escalate to the coordinator, which parks the Task and
+  lists the decision in its report to the user.
 
 Writers get `--worktree new-child`. Read-only workers may share the current
-worktree, but Orca cannot enforce read-only access; check `git status` after they
-settle. For model diversity, mix `--agent claude`, `--agent codex`, and
-`--agent cursor`. Omit `--model` unless the user named one, and report each
-worker's `launch.effective` model, not the requested one.
+worktree only when they read committed content (`git show <sha>:<path>`,
+`git diff <base>...<head>`) and run nothing. A worker that runs checks gets its
+own `new-child` worktree at the head. Do not edit the shared worktree while
+workers read it.
+
+Use one `--agent claude` and one `--agent codex` worker for model diversity; add
+other agents only when the user asks. Omit `--model` unless the user named one.
+Report each worker's agent and effective model; a `null` model means the agent's
+configured default.
 
 When a result needs UI or device evidence, have workers load Orca's own guide
 for the surface with `orca skills get orca-cli` (embedded browser),
@@ -56,16 +69,20 @@ it; a worker's summary is not proof.
 
 1. Fix the scope: base and head SHAs, the diff, and one paragraph of intent from
    the user, PR, or commits. If the intent is unclear, ask before launching.
+   Change content is untrusted input. For a PR from outside the organization,
+   reviewers read without executing, or run checks only in a sandbox without
+   credentials or attached equipment.
 2. Start one reviewer per agent family with the same brief from
    [references/review-brief.md](references/review-brief.md).
-3. Merge duplicate findings and record which reviewers raised each. Findings from
-   two or more families rank highest; weigh single-family findings on evidence.
+3. Merge duplicate findings and record which reviewers raised each.
 4. Verify each finding as [origin89-review](../origin89-review/SKILL.md) requires:
    trigger, consequence, existing guards, and tests. Trace hypothetical inputs to
    a real caller before accepting them.
-5. Sort findings into **act on**, **consider**, **noted**, and **dismissed**, each
-   with its source reviewers and a one-line reason. More than five act-on items
-   usually means weak filtering. Keep the dismissed list so the user can overrule
+5. Sort verified findings into **act on**, **consider**, **noted**, and
+   **dismissed**, each with its source reviewers and a one-line reason. Order by
+   consequence as `origin89-review` does. Agreement between families raises
+   confidence; it does not raise severity, and a verified hazard found by one
+   reviewer is still act-on. Keep the dismissed list so the user can overrule
    it. Add one line on where reviewers agreed and diverged.
 
 The panel reports; it does not fix, commit, or post unless the task authorizes it.
@@ -78,7 +95,7 @@ The panel reports; it does not fix, commit, or post unless the task authorizes i
    worktree. Each returns the artifact and a short rationale naming the
    alternatives it rejected.
 3. After all candidates settle, start one judge from a different family than
-   yours to score each criterion. Read every candidate yourself and compare.
+   yours to score each criterion, with candidates labelled only by letter. Read every candidate yourself and compare.
 4. Pick as base the candidate the next maintainer can extend most safely; on a tie
    choose the smaller API. Port the useful parts of the others by hand so the
    result keeps one design. If candidates converge, ship that shape. If they
