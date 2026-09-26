@@ -18,6 +18,7 @@ their review scope and do not start an authoring monitor.
 | --- | --- | --- |
 | Codex | `Code Review Rules` in root or scoped `AGENTS.md` | Use available shared skills; keep essential local rules in `AGENTS.md` |
 | Copilot | `.github/copilot-instructions.md` and root `AGENTS.md` | Use available shared skills; keep essential local rules in the native files |
+| Open Code Review (pilot) | `.github/workflows/ocr-review.yml` caller | Reads neither `AGENTS.md` nor the shared skills; uses its built-in language rules and optional `.opencodereview/rule.json` |
 
 Native instruction files remain installed configuration: update them through
 consumer PRs. An ignored skill cache on a developer's machine is not present
@@ -37,18 +38,23 @@ On PRs, the [reusable workflow](../.github/workflows/ocr-review.yml) posts
 inline findings and a summary comment. It is a pilot in km43 and firmware,
 running alongside CodeRabbit, to decide whether OCR can replace it. Copy the
 [caller template](../templates/workflows/ocr-review.yml) to
-`.github/workflows/ocr-review.yml` and grant the repository the
-`OCR_LLM_AUTH_TOKEN` organization secret, which holds the model provider's API
-key. The defaults use Ollama Cloud with `glm-5.2` and a one-million-token budget
-per run; callers can override `llm_url`, `llm_model`, and `max_tokens_budget`.
+`.github/workflows/ocr-review.yml`, replace `ENGINEERING_COMMIT_SHA`, and grant
+the repository the `OCR_LLM_AUTH_TOKEN` organization secret, which holds the
+model provider's API key. The defaults use Ollama Cloud with `glm-5.2` and a
+one-million-token budget per run; callers can override `llm_url`, `llm_model`,
+and `max_tokens_budget`.
 
-The workflow reviews only same-repository, non-draft PRs. It runs on the
-`pull_request` trigger, so fork PRs receive no secret and cannot spend the
-quota. It never checks out PR files into the working tree or runs PR code, and
-its model tools can only read the repository and post comments. The job has
+The workflow reviews only same-repository, non-draft, non-Dependabot PRs, so
+fork PRs cannot spend the quota. Callers use `pull_request_target`, so the
+workflow that receives the secret always comes from the base branch and a PR
+cannot replace it. This is safe only because the action checks out the base
+and reads the PR head as git objects: it never runs PR code, and its model tools
+can only read the repository and post comments. Keep it that way; adding a step
+that builds or runs PR code would expose the secret. The job has
 `contents: read` and `pull-requests: write`, a 20-minute limit, and pins the
-action by commit. Callers track engineering's `main`, so a merged change here
-reaches every caller; update the pinned action and `ocr_version` together.
+action by commit. Callers pin the reusable workflow to a reviewed engineering
+commit, because the job passes the secret to that code; bump each caller's SHA
+when the workflow changes. Update the pinned action and `ocr_version` together.
 
 ## Optional `@claude` requests
 
