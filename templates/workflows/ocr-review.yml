@@ -1,8 +1,10 @@
 # Copy to .github/workflows/ocr-review.yml; see engineering's docs/code-review.md.
 name: Open Code Review
 
+# pull_request_target keeps this secret-bearing file on the base branch;
+# a PR cannot edit the workflow that receives the key.
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:

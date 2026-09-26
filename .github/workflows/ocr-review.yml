@@ -1,7 +1,9 @@
 name: Open Code Review
 
-# Reusable PR review; see docs/code-review.md. Callers use the pull_request
-# trigger, so fork PRs receive no secret and are skipped.
+# Reusable PR review; see docs/code-review.md. Callers use pull_request_target
+# so the secret-bearing caller always comes from the base branch. The action
+# checks out the base and reads the PR head only as git objects; it never runs
+# PR code. Fork, draft, and Dependabot PRs are skipped.
 on:
   workflow_call:
     inputs:
@@ -26,9 +28,10 @@ permissions: {}
 jobs:
   review:
     if: >-
-      github.event_name == 'pull_request'
+      github.event_name == 'pull_request_target'
       && github.event.pull_request.head.repo.full_name == github.repository
       && !github.event.pull_request.draft
+      && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
