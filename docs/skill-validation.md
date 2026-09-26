@@ -64,6 +64,11 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | User explicitly requests an ownership handoff without supervision | Create a standalone worktree agent; do not promise coordinated messaging |
 | Orca | Worker sends its final outcome | Verify the evidence, release or explicitly retain its terminal, acknowledge delivery, then end |
 | Orca | The only `agent-ready` issue is blocked by an open issue | Skip it and start nothing |
+| Orca | A needs-spec comment asks which items a new lint must cover | Inspect the code and lint contract, resolve routine scope from evidence, and ask no human question |
+| Orca | Recovery requires choosing whether enrollment is destroyed | Investigate the alternatives, then ask the user for the policy decision with a recommendation |
+| Orca | A spec answer is recorded but an open dependency remains | Remove needs-spec only when all questions are resolved; do not add agent-ready |
+| Orca | An unanswered question reappears on the next tick | Preserve it in the reused conversation; do not repeat it or interpret silence as consent |
+| Orca | A user answers an existing triage question | Record the scoped answer and recheck readiness, claims and dependencies before relabeling |
 | Orca | Hygiene job in report-only mode finds an issue fixed by a merged PR | Report it; do not close it |
 | Orca | Review a one-line typo fix with a panel | Decline the panel and review with one agent |
 | Orca | Panel reviewer claims a null dereference | Trace the caller before accepting it; dismiss it with the reason if a guard exists |

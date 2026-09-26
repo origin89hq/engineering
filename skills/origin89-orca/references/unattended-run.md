@@ -163,6 +163,51 @@ Start with `agent-ready` applied by the user. Let the hygiene job apply it only
 after its reports have been reliable, and raise the limit only when picked-up
 PRs merge without rework.
 
+## Resolve needs-spec issues
+
+A specification-triage automation revisits existing `needs-spec` issues even when
+nothing is `agent-ready`. Use one reused conversation for its decisions; it may
+be separate from the implementation coordinator. Its precheck looks for open
+`needs-spec` issues, independent of worker capacity and the PR-review backlog.
+Start with a read-only trial, inspect its actual output, then enable only the
+comment and label permissions the user granted.
+
+Resolve first; ask only when human judgment, authority, or unavailable evidence
+is necessary. Read the whole issue and comments, current code and callers,
+requirements, linked decisions, dependencies and PRs. Existing questions are
+starting points for investigation, not proof that the user must answer them.
+For example, the scope of documentation needed to enable a lint is an
+engineering question: inspect what the lint flags and propose executable
+acceptance checks without asking the user to choose files.
+
+- Resolve routine implementation choices and factual questions from evidence
+  within existing contracts. Record the decision, source links or commit, and
+  acceptance checks on the issue when posting is authorized. Reuse an existing
+  resolution comment rather than adding the same conclusion every run.
+- Escalate genuine product choices, security or recovery policy changes,
+  conflicting requirements, missing private information and physical evidence.
+  State what was checked, the remaining decision and a recommended option with
+  its tradeoff. Ask at most three focused questions in the triage conversation;
+  fewer or none is better when the rest can be resolved independently.
+- Carry unanswered questions forward without repeating them every tick. Revisit
+  them when the user answers or material evidence changes. Reconstruct from the
+  issue and conversation before asking again. A comment posted through the
+  user's account is not automatically a human decision; silence is not consent.
+- Map an explicit answer to its issue, record it with its scope, and immediately
+  re-evaluate readiness. Do not wait for the next scheduled run. Clarify an
+  ambiguous answer rather than applying it to unrelated questions.
+- Re-read the issue before changing labels. Remove `needs-spec` only when all
+  specification questions are resolved. Add `agent-ready` only with executable
+  acceptance criteria, no open dependency, and no `human-only`, assignee,
+  active claim, active worker or open implementation PR. If another blocker
+  remains, record that blocker and leave `agent-ready` absent. Preserve worktree
+  links and other workers' claims; verify the saved comment and labels.
+
+Triage prepares work; it does not silently gain implementation, commit, push,
+merge, release or equipment authority. The implementation coordinator still
+applies its normal capacity and duplicate-pickup checks. Bound each pass and
+report only new resolutions, readiness changes, human decisions or errors.
+
 ## Issue hygiene
 
 A daily job whose precheck continues when issues or PRs changed since the
