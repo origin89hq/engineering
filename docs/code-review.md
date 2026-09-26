@@ -23,6 +23,33 @@ Native instruction files remain installed configuration: update them through
 consumer PRs. An ignored skill cache on a developer's machine is not present
 in a fresh hosted review.
 
+## Open Code Review
+
+[Open Code Review](https://open-codereview.ai) (OCR) runs its own review agent
+against a configured model. Treat its findings as unverified; it skips test
+files and Markdown by default.
+
+Locally, developers who have configured `ocr` get an extra pass before opening
+a PR, as described in [local Open Code Review](../skills/origin89-review/references/open-code-review.md).
+Nothing is installed or configured for people who have not.
+
+On PRs, the [reusable workflow](../.github/workflows/ocr-review.yml) posts
+inline findings and a summary comment. It is a pilot in km43 and firmware,
+running alongside CodeRabbit, to decide whether OCR can replace it. Copy the
+[caller template](../templates/workflows/ocr-review.yml) to
+`.github/workflows/ocr-review.yml` and grant the repository the
+`OCR_LLM_AUTH_TOKEN` organization secret, which holds the model provider's API
+key. The defaults use Ollama Cloud with `glm-5.2` and a one-million-token budget
+per run; callers can override `llm_url`, `llm_model`, and `max_tokens_budget`.
+
+The workflow reviews only same-repository, non-draft PRs. It runs on the
+`pull_request` trigger, so fork PRs receive no secret and cannot spend the
+quota. It never checks out PR files into the working tree or runs PR code, and
+its model tools can only read the repository and post comments. The job has
+`contents: read` and `pull-requests: write`, a 20-minute limit, and pins the
+action by commit. Callers track engineering's `main`, so a merged change here
+reaches every caller; update the pinned action and `ocr_version` together.
+
 ## Optional `@claude` requests
 
 The [mention template](../templates/workflows/claude.yml) is adapted from

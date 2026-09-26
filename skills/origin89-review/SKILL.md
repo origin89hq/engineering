@@ -15,6 +15,11 @@ Use the existing Codex and Copilot integrations for automatic PR reviews.
 Keep Claude reviews limited to explicit requests; do not add or re-enable an
 automatic Claude review workflow.
 
+Before a PR, when `ocr` is installed with a configured provider, add an Open
+Code Review pass following [local Open Code Review](references/open-code-review.md).
+Verify each finding yourself and review the files it excludes, especially tests.
+If OCR is unavailable, finish the normal review and say that it did not run.
+
 Read the requested diff, including untracked or staged work when relevant. Verify
 the comparison base instead of assuming a branch name. If output is truncated,
 read the missing portions before drawing a conclusion. Inspect callers, contracts,
