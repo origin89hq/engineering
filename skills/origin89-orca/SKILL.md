@@ -106,7 +106,8 @@ for model diversity is one `--agent claude` and one `--agent codex` worker; when
 the user has not named agents, confirm that pair once before the first launch.
 Hosted GitHub review keeps its own rules. Omit `--model` unless the user named one.
 Report each worker's agent and effective model; a `null` model means the agent's
-configured default.
+configured default. To shift routine work toward one family while keeping review
+cross-family, follow [Balance agent families](references/unattended-run.md#balance-agent-families).
 
 When a result needs UI or device evidence, have workers load Orca's own guide
 for the surface with `orca skills get orca-cli` (embedded browser),

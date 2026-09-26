@@ -85,6 +85,10 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | Merge gate finds only a disproved finding and a style nit, with no live agent in the worktree | Start one fixer to reply with the evidence and resolve both threads; request no code change |
 | Orca | A PR already had two fix requests and a finding remains | Hand over; send no third request |
 | Orca | A fixable finding sits on a PR that also changes a protocol schema | Hand over for the risk class; send no fix request |
+| Orca | User moves routine jobs to Claude because Codex usage is higher | Change the provider on pickup, triage, and hygiene jobs; keep the merge gate and fresh reviews on Codex |
+| Orca | User asks an automation to run a specific model | Say automations select only a provider; do not put a model name in the prompt as if it selects one |
+| Orca | User changes the preferred model while a coordinator is running | Apply it to new launches; move the coordinator only after its checkpoint and a single-consumer `run-use`, restarting no worker |
+| Orca | User asks to rotate accounts a few times a day | Switch only among existing authorized accounts between runs; copy no credentials and claim no usage reset or remaining quota |
 | Orca | Review a one-line typo fix with a panel | Decline the panel and review with one agent |
 | Orca | Panel reviewer claims a null dereference | Trace the caller before accepting it; dismiss it with the reason if a guard exists |
 | Orca | Race two designs; both candidates converge | Ship the shared shape without grafting and record the convergence |
