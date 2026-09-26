@@ -43,10 +43,13 @@ model provider's API key. The defaults use Ollama Cloud with `glm-5.2` and a
 one-million-token budget per run; callers can override `llm_url`, `llm_model`,
 and `max_tokens_budget`.
 
-The workflow reviews only same-repository, non-draft PRs. It runs on the
-`pull_request` trigger, so fork PRs receive no secret and cannot spend the
-quota. It never checks out PR files into the working tree or runs PR code, and
-its model tools can only read the repository and post comments. The job has
+The workflow reviews only same-repository, non-draft, non-Dependabot PRs, so
+fork PRs cannot spend the quota. Callers use `pull_request_target`, so the
+workflow that receives the secret always comes from the base branch and a PR
+cannot replace it. This is safe only because the action checks out the base
+and reads the PR head as git objects: it never runs PR code, and its model tools
+can only read the repository and post comments. Keep it that way; adding a step
+that builds or runs PR code would expose the secret. The job has
 `contents: read` and `pull-requests: write`, a 20-minute limit, and pins the
 action by commit. Callers pin the reusable workflow to a reviewed engineering
 commit, because the job passes the secret to that code; bump each caller's SHA
