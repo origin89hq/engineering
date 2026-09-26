@@ -53,6 +53,7 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | Issue has three independent open sub-issues | Coordinate one worker per sub-issue with dependencies from blocked-by links; write no code as coordinator |
 | Orca | Issue has two sub-issues that edit the same module | Work them in order as one worker; do not fan out |
 | working rules | A confirmed problem splits into independently mergeable parts | File a parent issue with linked sub-issues and blocked-by ordering |
+| Orca | User asks for idle pickup without granting commit, push, or PR creation | Do not create the job; ask for the grant or offer report-only triage |
 | Orca | Idle pickup runs while one agent is working and the limit is one | Precheck skips the run; no issue is claimed |
 | Orca | The only `agent-ready` issue is blocked by an open issue | Skip it and start nothing |
 | Orca | Hygiene job in report-only mode finds an issue fixed by a merged PR | Report it; do not close it |

@@ -113,8 +113,10 @@ The run rechecks those conditions, then picks one issue: first an issue that
 open issues are blocked by, then milestone order, then the oldest. Skip issues
 blocked by an open issue. Claim it with `agent-working`, then start its worker
 with `orca worktree create --issue <number> --agent <agent>`, passing the
-verified skill snapshot path and the authority: commit and push its own branch
-and open a PR, never merge. A parent with independent sub-issues gets a
+verified skill snapshot path and exactly the authority the user granted when
+creating the job. Idle pickup is useful only when the user explicitly grants
+workers commit, push, and PR creation on their own branches; without that grant,
+do not create the job. Merging is never part of the grant. A parent with independent sub-issues gets a
 coordinator worker instead. The run reports what it started and ends.
 
 Start with `agent-ready` applied by the user. Let the hygiene job apply it only
@@ -123,8 +125,9 @@ PRs merge without rework.
 
 ## Issue hygiene
 
-A daily job whose precheck continues only when issues or PRs changed since the
-previous day. It checks open issues for: a linked PR that merged, a parent whose
+A daily job whose precheck continues when issues or PRs changed since the
+previous day, or when an open issue has had no activity for 60 days, so quiet
+repositories still get the stale check. It checks open issues for: a linked PR that merged, a parent whose
 sub-issues are all closed, likely duplicates, a missing done condition, work
 that should be split into sub-issues, readiness for `agent-ready`, and no
 activity for 60 days.
