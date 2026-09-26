@@ -94,7 +94,8 @@ Scheduled issue work uses four labels in each adopting repository:
 `agent-ready` (an agent may take it), `agent-working` (claimed), `needs-spec`
 (missing a done condition or acceptance checks), and `human-only` (never picked
 up by an agent). Work that needs equipment, a bench, or flashing is always
-`human-only` for the verification step.
+`human-only` for the verification step. The `origin89-agent-labels` workflow
+template removes the first three when an issue closes.
 
 ## Idle pickup
 
@@ -130,7 +131,8 @@ previous day, or when an open issue has had no activity for 60 days, so quiet
 repositories still get the stale check. It checks open issues for: a linked PR that merged, a parent whose
 sub-issues are all closed, likely duplicates, a missing done condition, work
 that should be split into sub-issues, readiness for `agent-ready`, and no
-activity for 60 days.
+activity for 60 days. It also reports closed issues that still carry
+`agent-ready`, `agent-working` or `needs-spec`.
 
 Run it report-only first; the report stays in the Orca run history. Once the
 reports are reliable, the user may allow it to close issues fixed by merged PRs

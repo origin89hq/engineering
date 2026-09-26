@@ -1,0 +1,29 @@
+# Clears agent work-state labels when an issue closes, including through a PR's
+# closing keyword. Label meanings: skills/origin89-orca/references/unattended-run.md
+name: origin89-agent-labels
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+
+jobs:
+  clear:
+    if: >-
+      contains(github.event.issue.labels.*.name, 'agent-ready') ||
+      contains(github.event.issue.labels.*.name, 'agent-working') ||
+      contains(github.event.issue.labels.*.name, 'needs-spec')
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          for label in agent-ready agent-working needs-spec; do
+            if jq -e --arg l "$label" 'any(.issue.labels[]; .name == $l)' "$GITHUB_EVENT_PATH" > /dev/null; then
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$ISSUE/labels/$label" > /dev/null
+            fi
+          done

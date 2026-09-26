@@ -86,6 +86,18 @@ The [AI review setup](code-review.md) covers their native instructions and the
 optional `@claude` workflow for explicit requests. Do not add automatic Claude
 reviews.
 
+## Agent issue labels
+
+Repositories that take agent issue work create the four
+[issue labels](../skills/origin89-orca/references/unattended-run.md#issue-labels)
+and copy `templates/workflows/origin89-agent-labels.yml` to
+`.github/workflows/`. When an issue closes, including through a merged PR's
+closing keyword, it removes `agent-ready`, `agent-working` and `needs-spec`, so
+a closed issue does not read as claimed and a reopened one waits for a person
+to label it again. `human-only` stays. GitHub starts no workflow for an event
+caused by `GITHUB_TOKEN`, so an issue another workflow closes keeps its labels;
+the issue hygiene job reports those.
+
 ## Biome and just
 
 Merge `templates/typescript/biome.json` and
