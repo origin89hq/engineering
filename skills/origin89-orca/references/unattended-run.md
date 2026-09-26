@@ -98,7 +98,9 @@ above calls for one, at least one reviewer comes from a family other than the
 implementer's. Panels, races, and hosted review keep their own rules. For
 example, while Codex usage is higher, run idle pickup, needs-spec triage, and
 issue hygiene on Claude, and keep the merge gate and the fresh reviews of those
-Claude patches on Codex. That is the current routing, not a permanent split.
+Claude patches on Codex. A Codex-implemented change in the same queue still
+gets its independent review from Claude; the Codex gate's verdict does not
+count as that review. That is the current routing, not a permanent split.
 
 Supported controls, as `--help` shows them:
 
