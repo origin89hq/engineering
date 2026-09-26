@@ -1,0 +1,8 @@
+{
+  "name": "Origin89 agent labels",
+  "description": "Remove agent-ready, agent-working, and needs-spec when an issue closes.",
+  "iconName": "octicon tag",
+  "categories": [
+    "Automation"
+  ]
+}
