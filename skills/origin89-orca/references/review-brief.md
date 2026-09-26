@@ -51,5 +51,6 @@ the problem, the evidence or call path, and a concrete fix when you have one.
 Separate demonstrated defects from preference. Do not praise the code. If you
 find nothing, say "no findings" and list what you checked.
 
-Write the findings to {report path} and pass it as `--report-path` in
-`worker_done`.
+Write the findings to {report path}, which the coordinator must be able to read,
+and pass it as `--report-path` in `worker_done`. On another host, write to a
+shared location or transfer the report first.

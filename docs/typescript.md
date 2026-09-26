@@ -60,7 +60,7 @@ Build types so invalid values cannot be constructed:
   validating parser.
 - End every `switch` on a union with a `default` branch that assigns the value
   to `never` and throws, so a new variant fails compilation at each consumer:
-  `default: { const unhandled: never = state; throw new Error(\`Unhandled state: ${JSON.stringify(unhandled)}\`); }`.
+  ``default: { const unhandled: never = state; throw new Error(`Unhandled state: ${JSON.stringify(unhandled)}`); }``.
   An unused `never` binding fails Biome's unused-variable lint.
 - Use `satisfies` to check a literal without widening it. Use `as` only after
   validation has proved the claim. A type guard must check every property it

@@ -72,8 +72,10 @@ constraints, ownership, and acceptance fields, it names:
   worker confirms it can read that path before starting and escalates if not;
   a worker on another host needs its own verified snapshot;
 - base and head SHAs, file paths, and commands, not pasted file contents;
-- a report path outside the repository, passed as `--report-path` in
-  `worker_done`, for anything longer than the three-sentence summary;
+- a coordinator-readable report path outside the repository, passed as
+  `--report-path` in `worker_done`, for anything longer than the three-sentence
+  summary; a worker on another host writes to a shared location or transfers
+  the report before completing;
 - the authorization it inherits: edit, commit, push, open PR, or none. A worker
   never gains authority the coordinator lacks. Workers never flash firmware or
   operate equipment. They escalate to the coordinator, which parks the Task and
