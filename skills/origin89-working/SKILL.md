@@ -99,6 +99,9 @@ Read the relevant sibling skill for [Rust](../origin89-rust/SKILL.md),
 [Embassy](../origin89-embassy/SKILL.md), or [brand](../origin89-brand/SKILL.md).
 Keep project-specific skills alongside these common rules.
 
+For a multi-model review panel, competing implementations, a parallel sweep, or
+work that continues while the user is away, read [Orca](../origin89-orca/SKILL.md).
+
 For TypeSafe integration or a measured semantic-triage pilot, read
 [TypeSafe](../origin89-typesafe/SKILL.md). Load it when relevant; installing a
 skill alone does not reduce coding-agent token usage.

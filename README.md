@@ -36,6 +36,7 @@ Start with [contributing](CONTRIBUTING.md) and the [adoption guide](docs/adoptin
 | [origin89-embedded](skills/origin89-embedded/SKILL.md) | Firmware, hardware, and equipment commands |
 | [origin89-embassy](skills/origin89-embassy/SKILL.md) | Embassy adapters, tasks, linking, and existing bench workflows |
 | [origin89-brand](skills/origin89-brand/SKILL.md) | Consistent package-based brand integration |
+| [origin89-orca](skills/origin89-orca/SKILL.md) | Multi-agent review panels, races, sweeps, and unattended runs in Orca |
 | [origin89-typesafe](skills/origin89-typesafe/SKILL.md) | TypeSafe integration and measured development-triage pilots |
 | [origin89-writing](skills/origin89-writing/SKILL.md) | Every AI-written document and message |
 
