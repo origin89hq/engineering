@@ -215,7 +215,10 @@ SHA, asks the branch's worker to fix reviewer findings worth fixing, and hands
 anything else to a person with the `needs-human-review` label. Create it only
 when the user grants merge authority for named repositories. Fix requests need
 a separate grant of edit, commit, and push authority for those repositories;
-merge authority alone does not cover them. A default branch
+merge authority alone does not cover them. Asking a reviewer for a fresh review
+needs its own explicit grant naming each reviewer and its trigger command, as
+the [commit rules](../../origin89-commits/SKILL.md#no-assistant-references)
+require for review-bot invocations; neither grant implies it. A default branch
 that uses a merge queue is out of scope, because `gh pr merge` only enqueues
 there. The gate itself never pushes, rebases, requests reviews, or mentions
 reviewer bots.
@@ -294,8 +297,9 @@ satisfies rule 7 only; the other rules still apply.
 Verify each unresolved reviewer finding and each of the gate's own findings as
 origin89-review requires. A finding is worth fixing when it is demonstrated,
 within the PR's scope, and would be act-on or consider; a disproved finding or
-a style preference is not. Failing checks, a head behind the base, and an
-expected reviewer with no review of the current head are fixable. Rules 1, 2, 6, and 7 are never fixed this way: a conflict, a missing
+a style preference is not. Failing checks and a head behind the base are
+fixable. An expected reviewer with no review of the current head is fixable
+only under the review-request grant; without it, hand over. Rules 1, 2, 6, and 7 are never fixed this way: a conflict, a missing
 acceptance check, pending hardware work, or a risk class goes to a person.
 
 Without the fix-request grant, hand the PR over instead. Otherwise, deliver
@@ -307,9 +311,11 @@ When no agent is live, start a fresh one of the implementing family with
 The request names the PR, head SHA, each finding worth fixing with its link and
 reason, and each finding the gate disproved with its evidence. It grants only:
 fix those findings on this branch, run the repository's checks, commit and push
-the branch (merging the base in when it is behind; never force-push), request a
-fresh review of the new head from each expected reviewer through its documented
-trigger, and reply to and resolve the threads it addressed or disproved. It never grants merging,
+the branch (merging the base in when it is behind; never force-push), and reply
+to and resolve the threads it addressed or disproved. Under the review-request
+grant only, it also asks the named reviewers for a review of the new head using
+exactly the granted commands; otherwise it requests no review and mentions no
+bot. It never grants merging,
 releases, flashing, or equipment operation. The gate sends the request and ends;
 it does not wait for a reply.
 
