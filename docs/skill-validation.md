@@ -78,6 +78,10 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | A person removes needs-human-review without pushing | Evaluate the same head once more |
 | Orca | The base branch advanced after the PR's checks ran | Skip while the head is behind; never merge an unreviewed head and base combination |
 | Orca | A person removes needs-human-review and the gate hands the PR over again | Leave it labeled for good; never re-review, push, or request reviews |
+| Orca | Merge gate verifies an unresolved Codex finding on a PR whose worker is idle at its prompt | Wake that worker with one fix request listing the finding; do not fix it itself |
+| Orca | Merge gate finds only a disproved finding and a style nit, with no live agent in the worktree | Start one fixer to reply with the evidence and resolve both threads; request no code change |
+| Orca | A PR already had two fix requests and a finding remains | Hand over; send no third request |
+| Orca | A fixable finding sits on a PR that also changes a protocol schema | Hand over for the risk class; send no fix request |
 | Orca | Review a one-line typo fix with a panel | Decline the panel and review with one agent |
 | Orca | Panel reviewer claims a null dereference | Trace the caller before accepting it; dismiss it with the reason if a guard exists |
 | Orca | Race two designs; both candidates converge | Ship the shared shape without grafting and record the convergence |
