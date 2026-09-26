@@ -1,0 +1,51 @@
+name: Open Code Review
+
+# Reusable PR review; see docs/code-review.md. Callers use the pull_request
+# trigger, so fork PRs receive no secret and are skipped.
+on:
+  workflow_call:
+    inputs:
+      llm_url:
+        description: OpenAI-compatible API base URL.
+        type: string
+        default: https://ollama.com/v1
+      llm_model:
+        description: Model name at that endpoint.
+        type: string
+        default: glm-5.2
+      max_tokens_budget:
+        description: Total input and output token cap for one review.
+        type: string
+        default: "1000000"
+    secrets:
+      OCR_LLM_AUTH_TOKEN:
+        required: true
+
+permissions: {}
+
+jobs:
+  review:
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    concurrency:
+      group: ocr-review-${{ github.repository }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: alibaba/open-code-review@bccbc15f785269400735d5255540c231e6c02b6d # v1.12.9
+        with:
+          llm_url: ${{ inputs.llm_url }}
+          llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          llm_model: ${{ inputs.llm_model }}
+          llm_use_anthropic: "false"
+          ocr_version: 1.12.9
+          max_tokens_budget: ${{ inputs.max_tokens_budget }}
+          review_task_timeout: "12"
+          upload_artifacts: "false"
+          incremental: "true"

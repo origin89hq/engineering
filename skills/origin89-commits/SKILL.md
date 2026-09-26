@@ -87,6 +87,10 @@ state. Push, amend, rebase, or rewrite history only when included in the task.
 
 ## Push and PR checks
 
+Before opening a PR or requesting review, run the local self-review in
+[origin89-review](../origin89-review/SKILL.md), including its Open Code Review pass
+when `ocr` is configured. Fix verified findings within the task's scope first.
+
 Before pushing, inspect the commits ahead of the selected base and their full
 messages, the diff, the destination remote, and the branch name. Push an explicit
 branch ref. After a push, verify that the remote head and PR contain the commits
