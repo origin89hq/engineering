@@ -43,6 +43,14 @@ cover the controller's contract.
   Pair mocks with integration or contract tests for the actual adapter.
 - Review snapshot changes. Use targeted assertions for critical invariants and
   do not approve snapshot churn without understanding the behavioral change.
+- Before keeping a test, ask whether it would still pass if the subject's output
+  or side effect were wrong. If so, it cannot catch a defect. Common hollow
+  shapes: only `toBeDefined`/`not.toThrow`/`is_ok()`; only "mock was called";
+  a restated constant, config default, or prompt string; and assertions on
+  fixture data the subject never processed. Fuzz and property harnesses whose
+  property is "never panics or throws" are the exception. Assert the payload a
+  mock received or the resulting state, test the code that reads a constant, and
+  delete a test that has no observable assertion to make.
 - Never delete assertions, skip failures, loosen tolerances, or change expected
   values solely to make CI pass. Changes to expectations need a changed contract.
 

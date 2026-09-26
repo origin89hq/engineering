@@ -11,6 +11,10 @@ Preserve unrelated work and stronger project constraints. Repository files own
 exact commands, targets, pinouts, and versions; do not maintain snapshots of those
 facts in shared guidance. Reconcile conflicting instructions during adoption.
 
+Before asking the user how something behaves, check whether a bounded command,
+test, or throwaway prototype can answer it, and run that instead. Ask for product
+and preference decisions, missing context, and authorization.
+
 Finish the authorized work. Before running a command, know what it checks and
 what it can change. Choose the smallest useful command. Use focused commands
 with short timeouts, usually 10–30 seconds. Diagnose a timeout before retrying.
@@ -70,6 +74,14 @@ Use `gh` with an explicit `--repo owner/repo`, verified from the Git remote:
 3. Read back the created issue with `gh issue view` and include its URL in the
    handoff. One issue should cover one problem, not every symptom or mention.
 
+When a problem splits into parts that can each be changed, verified, and merged
+on their own, file a parent issue with one sub-issue per part so separate agents
+can take them. Link each part with
+`gh api --method POST repos/owner/repo/issues/<parent>/sub_issues -F sub_issue_id=<id>`,
+where `<id>` is the sub-issue's numeric `id` from `gh api repos/owner/repo/issues/<number>`,
+not its number. Record ordering with GitHub's blocked-by relationship. Keep
+parts that would edit the same files in one issue with a checklist.
+
 Respect explicit read-only or no-posting instructions and private security
 reporting rules. If issue creation is unavailable or outside the task's posting
 authorization, provide a ready-to-file title and body, explain the blocker, and
@@ -94,6 +106,9 @@ Read the relevant sibling skill for [Rust](../origin89-rust/SKILL.md),
 [review](../origin89-review/SKILL.md), [embedded/hardware](../origin89-embedded/SKILL.md),
 [Embassy](../origin89-embassy/SKILL.md), or [brand](../origin89-brand/SKILL.md).
 Keep project-specific skills alongside these common rules.
+
+For a multi-model review panel, competing implementations, a parallel sweep, or
+work that continues while the user is away, read [Orca](../origin89-orca/SKILL.md).
 
 For TypeSafe integration or a measured semantic-triage pilot, read
 [TypeSafe](../origin89-typesafe/SKILL.md). Load it when relevant; installing a
