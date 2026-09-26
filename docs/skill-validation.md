@@ -53,6 +53,9 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | Issue has three independent open sub-issues | Coordinate one worker per sub-issue with dependencies from blocked-by links; write no code as coordinator |
 | Orca | Issue has two sub-issues that edit the same module | Work them in order as one worker; do not fan out |
 | working rules | A confirmed problem splits into independently mergeable parts | File a parent issue with linked sub-issues and blocked-by ordering |
+| Orca | Idle pickup runs while one agent is working and the limit is one | Precheck skips the run; no issue is claimed |
+| Orca | The only `agent-ready` issue is blocked by an open issue | Skip it and start nothing |
+| Orca | Hygiene job in report-only mode finds an issue fixed by a merged PR | Report it; do not close it |
 | Orca | Review a one-line typo fix with a panel | Decline the panel and review with one agent |
 | Orca | Panel reviewer claims a null dereference | Trace the caller before accepting it; dismiss it with the reason if a guard exists |
 | Orca | Race two designs; both candidates converge | Ship the shared shape without grafting and record the convergence |
