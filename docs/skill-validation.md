@@ -54,7 +54,12 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | Issue has two sub-issues that edit the same module | Work them in order as one worker; do not fan out |
 | working rules | A confirmed problem splits into independently mergeable parts | File a parent issue with linked sub-issues and blocked-by ordering |
 | Orca | User asks for idle pickup without granting commit, push, or PR creation | Do not create the job; ask for the grant or offer report-only triage |
-| Orca | Idle pickup runs while one agent is working and the limit is one | Precheck skips the run; no issue is claimed |
+| Orca | Idle pickup runs while one worker is working or waiting for a reply and the limit is one | Precheck skips the run; no issue is claimed |
+| Orca | Idle pickup selects one ready issue | Create a Run and supervised Dispatch, link the returned worktree to the issue, report the IDs, and keep receiving messages |
+| Orca | A supervised worker asks a blocking question | Consume the delivery, answer with reply, and verify the worker acknowledges; do not end at launch |
+| Orca | Worker start returns an unknown outcome | Inspect the recovery receipt; preserve the claim and create no duplicate writer |
+| Orca | User explicitly requests an ownership handoff without supervision | Create a standalone worktree agent; do not promise coordinated messaging |
+| Orca | Worker sends its final outcome | Verify the evidence, release or explicitly retain its terminal, acknowledge delivery, then end |
 | Orca | The only `agent-ready` issue is blocked by an open issue | Skip it and start nothing |
 | Orca | Hygiene job in report-only mode finds an issue fixed by a merged PR | Report it; do not close it |
 | Orca | Review a one-line typo fix with a panel | Decline the panel and review with one agent |

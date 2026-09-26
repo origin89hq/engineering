@@ -25,9 +25,22 @@ so never make a panel a required review step.
 
 ## Work from issues
 
-One issue gets one Orca worktree and one agent by default:
-`orca worktree create --name <branch> --issue <number> --agent <agent> --prompt <task>`.
-That is a handoff with no Run. `orca worktree ps` shows every issue worker.
+One issue gets one isolated worktree and one worker by default. Scheduled pickup
+and requests for supervision or messaging use an orchestration Run, Task, and
+Dispatch, even for a single worker. Load the version-matched orchestration guide,
+create the Run with `orca orchestration run-create`, and launch with
+`orca orchestration worker-start --spec <task> --worktree new-top-level --repo <selector> --name <branch> --agent <agent> --json`.
+Link the returned worktree using
+`orca worktree set --worktree <returned-selector> --issue <number> --json`;
+`worker-start` does not accept `--issue`. Keep the coordinator receiving and
+answering messages until the Dispatch settles, then account for its terminal.
+Follow [idle pickup](references/unattended-run.md#idle-pickup) for the scheduled flow.
+
+Use `orca worktree create --issue <number> --agent <agent> --prompt <task>` only
+for an explicit ownership handoff without supervision or coordinated messaging.
+That route has no Run or Dispatch. `orca worktree ps` shows workspaces;
+`orca orchestration worker-list --run <run_id> --include-remote --json` shows
+supervised attempts.
 
 Before opening the PR, the issue worker runs the review panel when the change
 touches equipment control, firmware, or safety logic; authorization, secrets, or
@@ -38,8 +51,8 @@ When the issue has two or more open sub-issues that can progress independently
 instead of implementing:
 
 - Create one Run for the parent and one Task and worker per open sub-issue, each
-  in its own worktree linked with `--issue`. Sub-issues in another repository get
-  a worker in that repository.
+  in its own worktree linked with `worktree set --issue`. Sub-issues in another
+  repository get a worker in that repository.
 - Turn blocked-by links (`.../issues/<number>/dependencies/blocked_by`) into Task
   dependencies. Write no code as coordinator.
 - Coordinate one level only: a child works its own sub-issues itself.
@@ -81,7 +94,8 @@ constraints, ownership, and acceptance fields, it names:
   operate equipment. They escalate to the coordinator, which parks the Task and
   lists the decision in its report to the user.
 
-Writers get `--worktree new-child`. Read-only workers may share the current
+Writers get isolated worktrees: `--worktree new-top-level` for independent issues,
+`--worktree new-child` for related work. Read-only workers may share the current
 worktree only when they read committed content (`git show <sha>:<path>`,
 `git diff <base>...<head>`) and run nothing. A worker that runs checks gets its
 own `new-child` worktree at the head. Do not edit the shared worktree while

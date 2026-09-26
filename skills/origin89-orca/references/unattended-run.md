@@ -65,8 +65,9 @@ decisions, gaps, and the log path. Lead with the items that need the user.
 
 ## Scheduled automations
 
-An automation run is one agent session with no coordinator, inbox, or second
-reviewer, so it needs its own smaller contract. Create an `orca automations` job
+An automation starts one agent session. A report-only job can finish in that
+session; a job that launches supervised workers becomes their coordinator and
+keeps its Run inbox active until settlement. Create an `orca automations` job
 only when the user asks for recurring work, and check
 `orca automations create --help` for current flags.
 
@@ -98,26 +99,64 @@ up by an agent). Work that needs equipment, a bench, or flashing is always
 
 ## Idle pickup
 
-A job that starts the next issue when agents are idle. Run it every 15–30
-minutes on weekdays from a dedicated dispatch worktree; the dispatcher only
-reads and launches, and never edits code. Its precheck continues only when:
+A job that coordinates the next issue when agents are idle. Run it every 15–30
+minutes on weekdays from a dedicated dispatch worktree; the coordinator reads,
+claims, launches, and handles messages, but never edits code there. For a queue
+spanning repositories, use one coordinator automation with explicit repository
+selectors rather than separate consoles for the user to monitor. It summarizes
+progress and routes user instructions to the relevant Dispatch. Workers ask the
+coordinator; only unresolved decisions reach the user in that conversation. Its
+precheck continues only when:
 
-- fewer agents in the repository are in the `working` state than the limit
-  (`orca worktree ps --json`), starting at one;
-- fewer than the limit of the user's ready PRs await review, so agents do not
-  outrun review;
+- fewer issue workers in the repository are active than the limit, starting at
+  one; include workers waiting for a reply, not just those generating output;
+- fewer than the limit of the user's ready PRs await review;
 - an open `agent-ready` issue exists without `agent-working`, `needs-spec`,
   `human-only`, an assignee, or a linked Orca worktree.
 
-The run rechecks those conditions, then picks one issue: first an issue that
-open issues are blocked by, then milestone order, then the oldest. Skip issues
-blocked by an open issue. Claim it with `agent-working`, then start its worker
-with `orca worktree create --issue <number> --agent <agent>`, passing the
-verified skill snapshot path and exactly the authority the user granted when
-creating the job. Idle pickup is useful only when the user explicitly grants
-workers commit, push, and PR creation on their own branches; without that grant,
-do not create the job. Merging is never part of the grant. A parent with independent sub-issues gets a
-coordinator worker instead. The run reports what it started and ends.
+Recheck those conditions, then pick one issue: first an issue that open issues
+are blocked by, then milestone order, then the oldest. Skip issues blocked by an
+open issue. Idle pickup requires explicit authority for workers to commit, push,
+and open PRs on their own branches; without it, do not create the job. Never
+merge, publish releases, flash firmware, or operate equipment.
+
+1. Load the version-matched Orca orchestration guide and placement reference.
+   Claim the issue with `agent-working`, create a Run naming the repository and
+   issue, and launch a supervised worker with `worker-start --spec`, an isolated
+   `new-top-level` worktree, the exact repository, and the approved agent. Use
+   `worktree set --issue` on the returned worktree to preserve pickup exclusion.
+   Read each mutation receipt before proceeding. A failed or unknown start is
+   not permission to retry: follow its recovery receipt and preserve the claim
+   until the absence of a live worker is established.
+2. Pass the verified skill snapshot, issue acceptance criteria, and inherited
+   authority in the spec. A parent with independent sub-issues coordinates them
+   under [Work from issues](../SKILL.md#work-from-issues), including workers in
+   other repositories. Hardware verification stays with the user: implement and
+   run host checks, and list the required bench work in the PR.
+3. Report the issue, worktree, Run ID, Task ID, and Dispatch ID at launch, then
+   keep supervising. Use `orchestration send --to dispatch:<id>` for guidance,
+   `check --wait` for incoming messages, and `reply --id` for worker questions.
+   A successful send proves enqueue only; a worker reply establishes receipt.
+   Process the full delivery before acknowledgment. The worker follows its live
+   preamble for mailbox checks, blocking `ask`, and exactly one `worker_done`.
+4. Answer questions from available evidence within the grant. Missing product
+   information must reach the user; never invent an answer. Have the worker
+   record specific questions on the issue, add `needs-spec`, remove `agent-ready`
+   and `agent-working`, and settle with the blocker. Do not leave a worker blocked
+   on an inbox whose coordinator has ended.
+5. Follow the orchestration guide through settlement and terminal ownership.
+   Verify the reported PR or blocker and follow the PR-review follow-up contract.
+   Release settled terminals, or retain them only at the user's request; preserve
+   their worktrees and branches. Remove this attempt's `agent-working` claim after
+   verified settlement; never clear another attempt's claim. Report the result
+   and unresolved verification.
+   End only after completion accounting, not immediately after launch.
+
+A scheduled session must support this coordinator lifetime. If it cannot remain
+available, report that limitation before claiming an issue; do not silently fall
+back to a standalone agent. Do not redispatch an already running standalone
+worker merely to attach messaging; preserve its work and use Orca's documented
+recovery or terminal-reuse route once its state permits that transition.
 
 Start with `agent-ready` applied by the user. Let the hygiene job apply it only
 after its reports have been reliable, and raise the limit only when picked-up
