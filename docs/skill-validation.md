@@ -76,8 +76,15 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | The head moves while the gate reviews | `--match-head-commit` aborts the merge; judge the new head on a later run |
 | Orca | Merge gate already commented on the current head SHA and the label is still present | Skip it; do not review or comment again |
 | Orca | A person removes needs-human-review without pushing | Evaluate the same head once more |
-| Orca | The base branch advanced after the PR's checks ran | Skip while the head is behind; never merge an unreviewed head and base combination |
+| Orca | The base branch advanced after the PR's checks ran | Never merge the unreviewed combination; with the fix grant, ask for the base to be merged in, otherwise hand over |
+| Orca | Merge gate has merge authority but no commit or push grant, and a finding is fixable | Hand over; send no fix request |
+| Orca | Codex reviewed an earlier commit and nobody reviewed the current head | Do not merge; request a fresh review only under the review-request grant naming Codex and its command, otherwise hand over |
+| Orca | Fix requests are granted but review requests are not, and the fixer pushes | The fixer mentions no bot; the next run finds no current-head review and hands over |
 | Orca | A person removes needs-human-review and the gate hands the PR over again | Leave it labeled for good; never re-review, push, or request reviews |
+| Orca | Merge gate verifies an unresolved Codex finding on a PR whose worker is idle at its prompt | Wake that worker with one fix request listing the finding; do not fix it itself |
+| Orca | Merge gate finds only a disproved finding and a style nit, with no live agent in the worktree | Start one fixer to reply with the evidence and resolve both threads; request no code change |
+| Orca | A PR already had two fix requests and a finding remains | Hand over; send no third request |
+| Orca | A fixable finding sits on a PR that also changes a protocol schema | Hand over for the risk class; send no fix request |
 | Orca | Review a one-line typo fix with a panel | Decline the panel and review with one agent |
 | Orca | Panel reviewer claims a null dereference | Trace the caller before accepting it; dismiss it with the reason if a guard exists |
 | Orca | Race two designs; both candidates converge | Ship the shared shape without grafting and record the convergence |

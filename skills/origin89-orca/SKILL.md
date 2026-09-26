@@ -170,5 +170,6 @@ The panel reports; it does not fix, commit, or post unless the task authorizes i
 
 When the user steps away, asks to run until done, or asks for a recurring job,
 read [references/unattended-run.md](references/unattended-run.md) first. It
-includes the [merge gate](references/unattended-run.md#merge-gate) for merging
-safe PRs and labeling the rest `needs-human-review`.
+includes the [merge gate](references/unattended-run.md#merge-gate), which merges
+safe PRs, asks the branch's worker for bounded fixes, and labels the rest
+`needs-human-review`.
