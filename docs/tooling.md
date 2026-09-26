@@ -87,6 +87,25 @@ The [package check template](../templates/workflows/origin89-check.yml) uses
 Keep `workflow_dispatch` where release PRs need a manually requested check.
 Preserve job names used by branch protection when changing triggers.
 
+## Rust build cache
+
+Use [kache](https://github.com/kunobi-ninja/kache) as Cargo's `rustc`
+wrapper on development machines. Every task gets its own worktree, and kache
+restores a crate another worktree already compiled instead of rebuilding it,
+using copy-on-write clones where the filesystem supports them.
+
+Set it up once per machine with `kache init --no-shell`. The flag keeps the
+compiler shims out of the shell `PATH`; Cargo builds and their build scripts
+are still cached. Keep the cache on the machine with `local_only = true`
+under `[cache]` in `~/.config/kache/config.toml`. We run no shared remote, and
+Origin89 artifacts must not reach another project's bucket. Run
+`kache doctor` to confirm the remote line reports local-only mode.
+
+Do not commit a `.kache.toml` to a repository: it replaces the developer's
+whole configuration. Leave CI without kache until a shared remote exists. A
+build that serves as reproducibility evidence runs with `KACHE_DISABLED=1`,
+or in a container, so a cache hit cannot stand in for a rebuild.
+
 ## Biome
 
 Install a verified stable `@biomejs/biome` as an exact pnpm dev dependency.
