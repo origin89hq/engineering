@@ -62,6 +62,13 @@ additional relevant branches. Check that assertions establish the contract and
 would catch the suspected failure. Simple code may have fewer meaningful paths;
 hazardous code can need many more. Look beyond test counts and coverage totals.
 
+Report structural regressions when their maintenance cost is concrete: new
+special-case branches in a shared flow, logic placed outside its owning module,
+a helper that duplicates an existing one, a one-caller wrapper, or a new API kept
+beside an old one that has no remaining external consumers. Say which branches,
+files, or paths a simpler structure would remove. A different preferred approach
+without a concrete problem is not a finding.
+
 Before reporting a defect, verify its trigger and consequence, search for a guard
 elsewhere, and inspect the existing tests. Distinguish demonstrated issues from
 unverified concerns. Do not manufacture findings or block on personal style.

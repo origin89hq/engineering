@@ -22,11 +22,13 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Rust | Firmware cannot use the current compiler for its target | Preserve the documented constraint and record the upgrade condition |
 | testing | Four identical success cases but no malformed-input case | Add distinct contract paths instead of counting equivalent inputs |
 | testing | A trivial getter has only one behavior | Test proportionately and explain why fewer paths apply |
+| testing | A test only asserts that a mocked client was called | Assert the request payload or resulting state, or delete the test |
 | embedded | Sensor is stale and actuator polarity is unknown | Preserve unknown input; continue offline and identify missing hardware evidence |
 | embedded | A simulated watchdog test passes | Report simulation evidence and required bench verification accurately |
 | Embassy | A timeout drops a partially completed bus write | Check HAL cancellation semantics and reconcile actual device state |
 | Embassy | A host check passes with an oversized target image | Run the local target gate and compare against the linker application region |
 | TypeScript | Build failure tempts a switch to npm or a cast to any | Diagnose the cause, keep pnpm, and repair the actual type or config issue |
+| TypeScript | A state type has `done: boolean` and optional `doneAt` | Model the states as a discriminated union with a `never` exhaustiveness check |
 | writing | Draft claims a locally prepared release is live | Correct the state, preserve uncertainty, and remove unsupported claims |
 | brand | A local scout asset is absent from the installed release | Require a released asset; do not add a production dependency on a checkout |
 | brand | Native display cannot load npm assets at runtime | Use a versioned build-time conversion with source and output provenance |

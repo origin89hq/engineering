@@ -11,6 +11,10 @@ Preserve unrelated work and stronger project constraints. Repository files own
 exact commands, targets, pinouts, and versions; do not maintain snapshots of those
 facts in shared guidance. Reconcile conflicting instructions during adoption.
 
+Before asking the user how something behaves, check whether a bounded command,
+test, or throwaway prototype can answer it, and run that instead. Ask for product
+and preference decisions, missing context, and authorization.
+
 Finish the authorized work. Before running a command, know what it checks and
 what it can change. Choose the smallest useful command. Use focused commands
 with short timeouts, usually 10–30 seconds. Diagnose a timeout before retrying.

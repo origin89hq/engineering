@@ -50,6 +50,23 @@ clear input and return types; let local inference handle obvious intermediate
 values. Do not add a schema library when existing validation already meets the
 contract.
 
+Build types so invalid values cannot be constructed:
+
+- Replace a bag of optional fields with variants. `{ done: boolean; doneAt?: Date }`
+  admits `done: true` without a time; `{ kind: 'open' } | { kind: 'done'; at: Date }`
+  does not.
+- Brand IDs and units that share a primitive, such as `string & { readonly __brand: 'DeviceId' }`.
+  Create them only in the validating parser.
+- End every `switch` on a union with `const unhandled: never = value;` so a new
+  variant fails compilation at each consumer.
+- Use `satisfies` to check a literal without widening it. Use `as` only after
+  validation has proved the claim. A type guard must check every property it
+  asserts; a guard that lies is worse than a cast.
+- Derive types from the owning schema, generated client, or existing type with
+  `z.infer`, `Pick`, `ReturnType`, or `typeof` instead of a parallel interface.
+- Strengthen a type only where the weaker one forces a non-null assertion, cast,
+  or "cannot happen" throw. Precision that removes no failure is extra upkeep.
+
 ## Handle I/O and asynchronous work
 
 Await or deliberately manage every promise. Propagate cancellation where supported

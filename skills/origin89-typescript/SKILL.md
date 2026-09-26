@@ -28,6 +28,12 @@ data as `unknown` and validate it. Avoid `any`, unproved non-null assertions, an
 double casts that conceal a real defect. Use discriminated unions for states and
 errors, with explicit units and missing/stale values where needed.
 
+Replace optional-field bags with variants, brand IDs and units that share a
+primitive, and end union switches with a `never` check. Prefer `satisfies` to
+`as`; a type guard must verify every property it claims. Derive types from the
+owning schema or generated client. Strengthen a type only where the weaker one
+forces an assertion, cast, or "cannot happen" throw.
+
 Await promises or manage their completion and errors explicitly. Bound retries,
 queues, and external work; define timeout, cancellation, cleanup, and partial
 failure. Reconcile uncertain writes before retrying. Do not swallow errors or
