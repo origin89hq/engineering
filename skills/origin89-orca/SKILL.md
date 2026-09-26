@@ -38,7 +38,12 @@ it and `--help` do not show.
 Every worker spec must stand alone. In addition to Orca's target, change,
 constraints, ownership, and acceptance fields, it names:
 
-- the Origin89 skills to read: `origin89-working` plus the domain skills;
+- the Origin89 skills to read, `origin89-working` plus the domain skills, by
+  absolute path under the coordinator's verified snapshot (the `path` printed by
+  `just skills-sync`, or this repository's `skills/` in engineering). A new
+  worktree has no skill cache, and a fresh sync could load another revision. The
+  worker confirms it can read that path before starting and escalates if not;
+  a worker on another host needs its own verified snapshot;
 - base and head SHAs, file paths, and commands, not pasted file contents;
 - a report path outside the repository, passed as `--report-path` in
   `worker_done`, for anything longer than the three-sentence summary;
@@ -53,8 +58,10 @@ worktree only when they read committed content (`git show <sha>:<path>`,
 own `new-child` worktree at the head. Do not edit the shared worktree while
 workers read it.
 
-Use one `--agent claude` and one `--agent codex` worker for model diversity; add
-other agents only when the user asks. Omit `--model` unless the user named one.
+Start only agent families the user approved for this task. The Origin89 default
+for model diversity is one `--agent claude` and one `--agent codex` worker; when
+the user has not named agents, confirm that pair once before the first launch.
+Hosted GitHub review keeps its own rules. Omit `--model` unless the user named one.
 Report each worker's agent and effective model; a `null` model means the agent's
 configured default.
 
