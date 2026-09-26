@@ -18,6 +18,7 @@ their review scope and do not start an authoring monitor.
 | --- | --- | --- |
 | Codex | `Code Review Rules` in root or scoped `AGENTS.md` | Use available shared skills; keep essential local rules in `AGENTS.md` |
 | Copilot | `.github/copilot-instructions.md` and root `AGENTS.md` | Use available shared skills; keep essential local rules in the native files |
+| Open Code Review (pilot) | `.github/workflows/ocr-review.yml` caller | Reads neither `AGENTS.md` nor the shared skills; uses its built-in language rules and optional `.opencodereview/rule.json` |
 
 Native instruction files remain installed configuration: update them through
 consumer PRs. An ignored skill cache on a developer's machine is not present
