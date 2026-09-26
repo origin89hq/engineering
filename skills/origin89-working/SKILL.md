@@ -74,6 +74,14 @@ Use `gh` with an explicit `--repo owner/repo`, verified from the Git remote:
 3. Read back the created issue with `gh issue view` and include its URL in the
    handoff. One issue should cover one problem, not every symptom or mention.
 
+When a problem splits into parts that can each be changed, verified, and merged
+on their own, file a parent issue with one sub-issue per part so separate agents
+can take them. Link each part with
+`gh api --method POST repos/owner/repo/issues/<parent>/sub_issues -F sub_issue_id=<id>`,
+where `<id>` is the sub-issue's numeric `id` from `gh api repos/owner/repo/issues/<number>`,
+not its number. Record ordering with GitHub's blocked-by relationship. Keep
+parts that would edit the same files in one issue with a checklist.
+
 Respect explicit read-only or no-posting instructions and private security
 reporting rules. If issue creation is unavailable or outside the task's posting
 authorization, provide a ready-to-file title and body, explain the blocker, and

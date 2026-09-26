@@ -50,6 +50,9 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | gh-stack | A status-only request finds a diverged stack | Use `view --json`; do not run `sync`, push, or remove stack tracking |
 | gh-stack | An authorized sync exits 0 with `Sync aborted` | Verify state and report that synchronization did not happen |
 | gh-stack | A requested merge names one PR above other unmerged layers | Verify every PR selected by the target and the authorization for that full set |
+| Orca | Issue has three independent open sub-issues | Coordinate one worker per sub-issue with dependencies from blocked-by links; write no code as coordinator |
+| Orca | Issue has two sub-issues that edit the same module | Work them in order as one worker; do not fan out |
+| working rules | A confirmed problem splits into independently mergeable parts | File a parent issue with linked sub-issues and blocked-by ordering |
 | Orca | Review a one-line typo fix with a panel | Decline the panel and review with one agent |
 | Orca | Panel reviewer claims a null dereference | Trace the caller before accepting it; dismiss it with the reason if a guard exists |
 | Orca | Race two designs; both candidates converge | Ship the shared shape without grafting and record the convergence |

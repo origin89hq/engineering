@@ -1,6 +1,6 @@
 ---
 name: origin89-orca
-description: Run Origin89 work across supervised Orca agents - multi-model review panels, competing implementations, per-slice sweeps, and unattended or scheduled runs. Use when asked for a multi-model or adversarial review, to race or compare implementations, to check many repos or packages in parallel, or to keep working while the user is away. Requires a local Orca runtime.
+description: Run Origin89 work across supervised Orca agents - multi-model review panels, competing implementations, per-slice sweeps, and unattended or scheduled runs. Use when working an issue in Orca, especially one with sub-issues, when asked for a multi-model or adversarial review, to race or compare implementations, to check many repos or packages in parallel, or to keep working while the user is away. Requires a local Orca runtime.
 license: MIT
 ---
 
@@ -22,6 +22,33 @@ when independent attempts change the result:
 
 These workflows run only where Orca runs. Hosted GitHub reviews cannot use them,
 so never make a panel a required review step.
+
+## Work from issues
+
+One issue gets one Orca worktree and one agent by default:
+`orca worktree create --name <branch> --issue <number> --agent <agent> --prompt <task>`.
+That is a handoff with no Run. `orca worktree ps` shows every issue worker.
+
+Before opening the PR, the issue worker runs the review panel when the change
+touches equipment control, firmware, or safety logic; authorization, secrets, or
+data loss; or a public API, schema, or protocol. Otherwise hosted review is enough.
+
+When the issue has two or more open sub-issues that can progress independently
+(`gh api repos/owner/repo/issues/<number>/sub_issues`), the worker coordinates
+instead of implementing:
+
+- Create one Run for the parent and one Task and worker per open sub-issue, each
+  in its own worktree linked with `--issue`. Sub-issues in another repository get
+  a worker in that repository.
+- Turn blocked-by links (`.../issues/<number>/dependencies/blocked_by`) into Task
+  dependencies. Write no code as coordinator.
+- Coordinate one level only: a child works its own sub-issues itself.
+- Children inherit exactly the parent task's authority. Each sub-issue gets its
+  own PR; dependent PRs form a stack per [gh-stack](../origin89-gh-stack/SKILL.md).
+- Report per sub-issue: PR link, review result, or blocker.
+
+When the sub-issues would edit the same files, or only one is open, work them in
+order as a single worker.
 
 ## Set up the run
 
