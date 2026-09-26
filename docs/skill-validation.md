@@ -76,7 +76,9 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | The head moves while the gate reviews | `--match-head-commit` aborts the merge; judge the new head on a later run |
 | Orca | Merge gate already commented on the current head SHA and the label is still present | Skip it; do not review or comment again |
 | Orca | A person removes needs-human-review without pushing | Evaluate the same head once more |
-| Orca | The base branch advanced after the PR's checks ran | Skip while the head is behind; never merge an unreviewed head and base combination |
+| Orca | The base branch advanced after the PR's checks ran | Never merge the unreviewed combination; with the fix grant, ask for the base to be merged in, otherwise hand over |
+| Orca | Merge gate has merge authority but no commit or push grant, and a finding is fixable | Hand over; send no fix request |
+| Orca | Codex reviewed an earlier commit and nobody reviewed the current head | Do not merge; with the fix grant, the fix request asks for a fresh review, otherwise hand over |
 | Orca | A person removes needs-human-review and the gate hands the PR over again | Leave it labeled for good; never re-review, push, or request reviews |
 | Orca | Merge gate verifies an unresolved Codex finding on a PR whose worker is idle at its prompt | Wake that worker with one fix request listing the finding; do not fix it itself |
 | Orca | Merge gate finds only a disproved finding and a style nit, with no live agent in the worktree | Start one fixer to reply with the evidence and resolve both threads; request no code change |

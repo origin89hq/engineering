@@ -213,7 +213,9 @@ report only new resolutions, readiness changes, human decisions or errors.
 A scheduled job that merges a PR only when every rule below holds at one head
 SHA, asks the branch's worker to fix reviewer findings worth fixing, and hands
 anything else to a person with the `needs-human-review` label. Create it only
-when the user grants merge authority for named repositories. A default branch
+when the user grants merge authority for named repositories. Fix requests need
+a separate grant of edit, commit, and push authority for those repositories;
+merge authority alone does not cover them. A default branch
 that uses a merge queue is out of scope, because `gh pr merge` only enqueues
 there. The gate itself never pushes, rebases, requests reviews, or mentions
 reviewer bots.
@@ -232,14 +234,15 @@ out=$(gh pr list --repo owner/repo --state open --limit 200 --json number,isDraf
 Every run ends each PR in exactly one of four states:
 
 - **Skip**, silently, while the PR is still moving: the head commit is less
-  than 30 minutes old, checks or an expected reviewer are pending, the head is
-  behind the base, or an agent in the branch's worktree is `working`. The
+  than 30 minutes old, checks or an expected reviewer are pending at the head,
+  or an agent in the branch's worktree is `working`. The
   author's [review follow-up](../../origin89-commits/references/pr-review-follow-up.md)
   owns that phase. A PR still pending 24 hours after its head commit is
   stalled; hand it over.
 - **Merge** when all rules hold.
-- **Ask for fixes** when only rules 3–5 fail and each failure is fixable on the
-  branch, within the fix budget below.
+- **Ask for fixes** when fix requests are granted, only rules 3–5 fail, and
+  each failure is fixable on the branch, within the fix budget below. A head
+  behind the base that is otherwise settled goes here, not to Skip.
 - **Hand over** otherwise: add `needs-human-review` and post one comment giving
   the head SHA, each failed rule, and any findings.
 
@@ -256,9 +259,9 @@ Merge only when all of these hold for the same head SHA:
    completed as success, neutral, or skipped, and every required check is
    present.
 4. Every expected reviewer, as the review follow-up defines them, completed a
-   review of this PR; the gate's own review covers commits pushed after it. A
-   reviewer that reported a quota failure or skip is unavailable, not clean;
-   name it in the verdict, and hand over when no expected reviewer completed.
+   review of the current head; a review of an earlier commit does not count,
+   and the gate's own review does not replace it. A reviewer that reported a
+   quota failure or skip is unavailable, not clean: hand over and name it.
    There are no unresolved threads and no outstanding change request.
 5. The gate's own review of `git diff <base>...<head>`, under
    [origin89-review](../../origin89-review/SKILL.md), finds nothing to act on
@@ -291,11 +294,12 @@ satisfies rule 7 only; the other rules still apply.
 Verify each unresolved reviewer finding and each of the gate's own findings as
 origin89-review requires. A finding is worth fixing when it is demonstrated,
 within the PR's scope, and would be act-on or consider; a disproved finding or
-a style preference is not. Failing checks and a head behind the base are
-fixable. Rules 1, 2, 6, and 7 are never fixed this way: a conflict, a missing
+a style preference is not. Failing checks, a head behind the base, and an
+expected reviewer with no review of the current head are fixable. Rules 1, 2, 6, and 7 are never fixed this way: a conflict, a missing
 acceptance check, pending hardware work, or a risk class goes to a person.
 
-Deliver one fix request to the branch's worktree, found through
+Without the fix-request grant, hand the PR over instead. Otherwise, deliver
+one fix request to the branch's worktree, found through
 `orca worktree ps --json`. When an agent there is `done` (idle at its prompt),
 wake it with `orca terminal send --text <request> --enter` on that terminal.
 When no agent is live, start a fresh one of the implementing family with
@@ -303,8 +307,9 @@ When no agent is live, start a fresh one of the implementing family with
 The request names the PR, head SHA, each finding worth fixing with its link and
 reason, and each finding the gate disproved with its evidence. It grants only:
 fix those findings on this branch, run the repository's checks, commit and push
-the branch (merging the base in when it is behind; never force-push), and reply
-to and resolve the threads it addressed or disproved. It never grants merging,
+the branch (merging the base in when it is behind; never force-push), request a
+fresh review of the new head from each expected reviewer through its documented
+trigger, and reply to and resolve the threads it addressed or disproved. It never grants merging,
 releases, flashing, or equipment operation. The gate sends the request and ends;
 it does not wait for a reply.
 
