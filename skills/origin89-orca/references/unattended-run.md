@@ -307,9 +307,10 @@ Every run ends each PR in exactly one of four states:
 
 - **Skip**, silently, while the PR is still moving: the head commit is less
   than 30 minutes old, checks or an expected reviewer are pending at the head,
-  or an agent in the branch's worktree is `working`. The
-  author's [review follow-up](../../origin89-commits/references/pr-review-follow-up.md)
-  owns that phase. A PR still pending 24 hours after its head commit is
+  an agent in the branch's worktree is `working`, or the PR conflicts with its
+  base and its head is less than 24 hours old. The author's
+  [review follow-up](../../origin89-commits/references/pr-review-follow-up.md)
+  owns that phase and resolves conflicts until the PR merges. A PR still pending 24 hours after its head commit is
   stalled; hand it over.
 - **Merge** when all rules hold.
 - **Ask for fixes** when fix requests are granted, only rules 3–5 fail, and

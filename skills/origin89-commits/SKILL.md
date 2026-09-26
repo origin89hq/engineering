@@ -127,14 +127,23 @@ it, including Codex, Copilot, other bots, and requested humans. An installed
 mention-only integration such as Claude is expected only when invoked for this
 PR. Do not stop after the first expected reviewer responds.
 
-Default to one check every **2 minutes**, with an absolute **30-minute deadline**
-from initial monitor creation. Respect an explicit user duration. Fixes, pushes,
-retries, and task resumptions do not reset that deadline. Use a managed scheduler
-that can wake the agent and stop the follow-up. End the foreground turn once
-the monitor is confirmed; never occupy it with sleeps or polling loops.
+The follow-up has two phases. While reviews are pending, check every
+**2 minutes**. The review phase ends when every expected review is complete for
+the current head and its feedback is addressed, or after **30 minutes without
+reviewer activity**: a new review, inline comment, or conversation comment from
+a reviewer, or a push of yours addressing one, starts a fresh 30-minute window.
+Report reviews still missing when a quiet window ends. Then watch every
+**10 minutes** until the PR merges or closes: address feedback that still
+arrives, and resolve merge conflicts by merging the base into the branch. A
+conflict fix is a new head, so its reviews start over. Whatever the phase, stop
+at an absolute **24-hour cap** from initial monitor creation. Respect an
+explicit user duration. API retries and task resumptions extend nothing. Use a
+managed scheduler that can wake the agent and stop the follow-up. End the
+foreground turn once the monitor is confirmed; never occupy it with sleeps or
+polling loops.
 
-Report the PR URL and expiry time when monitoring starts. Stop and clean up on
-completion, closure, merge, cancellation, timeout, or a blocker requiring user
-action. If the runtime cannot provide bounded background follow-up, say it was
-not started and return the PR's current state. Keep explicit restrictions on
-fixes, commits, pushes, and posting; this rule does not authorize merging.
+Report the PR URL and the cap when monitoring starts. Stop and clean up on
+merge, closure, cancellation, the cap, or a blocker requiring user action. If
+the runtime cannot provide bounded background follow-up, say it was not started
+and return the PR's current state. Keep explicit restrictions on fixes,
+commits, pushes, and posting; this rule does not authorize merging.
