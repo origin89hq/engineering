@@ -182,8 +182,11 @@ coordinator; only unresolved decisions reach the user in that conversation. Its
 precheck continues only when:
 
 - fewer issue workers in the repository are active than the limit, starting at
-  one; include workers waiting for a reply, not just those generating output;
-- fewer than the limit of the user's ready PRs await review;
+  one; include workers waiting for a reply, not just those generating output.
+  A worker is active only until its Dispatch settles. A settled worker's open
+  PR does not hold a slot while it waits for review or merge: the merge gate
+  and [repair](#repair-conflicting-prs) own it from there, and its linked
+  worktree already keeps its issue from being picked up again;
 - an open `agent-ready` issue exists without `agent-working`, `needs-spec`,
   `human-only`, an assignee, a linked Orca worktree, or an open blocker
   (`issue_dependencies_summary.blocked_by` above 0 in
@@ -199,9 +202,11 @@ start the computation, then list again after a short wait.
 
 Recheck those conditions, then pick one issue: first an issue that open issues
 are blocked by, then milestone order, then the oldest. Skip issues blocked by an
-open issue. Do not run two issues at once that allocate in the same generated
-file, such as a protocol registry: the second waits for the first to merge,
-because a sibling merging first leaves the other PR conflicting. Before claiming, read the issue body and comments. When the text
+open issue. Before claiming, check whether the issue would edit the same files
+as one of the user's open, unmerged PRs, such as a shared generated file or
+protocol registry; a sibling merging first would leave the second PR
+conflicting. Stack it instead of waiting, per [Stack overlapping work](#stack-overlapping-work).
+Before claiming, read the issue body and comments. When the text
 names an open issue as a prerequisite and no blocked-by link records it, do not
 claim the issue; skip it and list it in the report so the link gets added.
 Idle pickup requires explicit authority for workers to commit, push,
@@ -229,6 +234,10 @@ merge, publish releases, flash firmware, or operate equipment.
    A successful send proves enqueue only; a worker reply establishes receipt.
    Process the full delivery before acknowledgment. The worker follows its live
    preamble for mailbox checks, blocking `ask`, and exactly one `worker_done`.
+   It runs the review phase of the
+   [review follow-up](../../origin89-commits/references/pr-review-follow-up.md)
+   with a bounded cap, then settles; it does not stay live to wait for merge,
+   so a finished PR frees its slot.
 4. Answer questions from available evidence within the grant. Missing product
    information must reach the user; never invent an answer. A worker that cannot
    finish records the blocker on the issue, which is the durable record once the
@@ -264,6 +273,25 @@ back to a standalone agent. Do not redispatch an already running standalone
 worker merely to attach messaging; preserve its work and use Orca's documented
 recovery or terminal-reuse route once its state permits that transition.
 
+### Stack overlapping work
+
+When the next issue overlaps an open, unmerged PR's files, or builds on that
+PR's change, launch its worker on a new layer above that PR's branch with
+[gh-stack](../../origin89-gh-stack/SKILL.md) rather than on the default branch.
+The new layer contains the lower change, so allocations in a shared file follow
+it and cannot collide, and the PR shows only its own diff. Stack only on a PR
+whose worker has settled and that lacks `needs-human-review` and `human-only`;
+otherwise pick another issue. The spec names the lower branch and head SHA and
+has the worker create the layer with `gh stack add <branch>` from a checkout of
+that branch, open the PR with `gh stack submit --auto --open`, and never edit
+the lower layer. A finding that belongs in the lower layer goes back to the
+coordinator.
+
+Stacks keep one writer per layer. Only the coordinator, through a repair
+worker, restacks, and only when no live worker holds any layer of the stack.
+Keep at most three open layers in one stack; beyond that, pick another issue.
+The merge gate merges the bottom layer only, as its rule 1 requires.
+
 ### Repair conflicting PRs
 
 A picked-up PR can start conflicting after its worker settles, typically when a
@@ -296,6 +324,13 @@ coordinator hands the PR over if a later pass still sees `UNKNOWN`, because an
 unneeded update restarts reviews. A resolution that would choose between
 behaviours is a blocker: the worker comments it on the PR and the coordinator
 hands the PR over.
+
+A stacked PR also needs repair when its lower layer has merged, so the gate can
+reach it, or when `gh stack view --json` reports `needsRebase`. Its repair
+worker restacks with `gh stack sync` instead of merging the base: `sync`
+handles squash-merged layers and retargets each PR to its new base. This is
+the only repair that force-pushes, and only the stack's own layers. On a
+conflict, it follows gh-stack's exit 3 recovery under the same intent rules.
 
 A repair does not use the issue limit and does not claim or relabel the PR's
 issue. Run at most two repairs at once across the job's repositories, and start
