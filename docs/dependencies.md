@@ -72,8 +72,27 @@ targets may require a qualified or vendor-supported version; record that constra
 
 ## Keep the baseline current
 
-Review dependency and toolchain updates regularly through normal PRs. A repository
-may configure an update bot, but do not auto-merge major or safety-relevant changes.
+Dependabot proposes updates through normal PRs. Each repository keeps a
+`.github/dependabot.yml` started from `templates/dependabot.yml`, with one entry
+per package ecosystem and lockfile directory. Version updates run weekly and
+group minor and patch releases per ecosystem; majors arrive as separate PRs. A
+three-day cooldown keeps proposals at or beyond pnpm's `minimumReleaseAge`.
+Security updates are not delayed or grouped. People review and merge every
+update; do not auto-merge dependency PRs. Treat a major or firmware toolchain
+update as a migration and requalify it where hardware requires.
+
+`templates/workflows/origin89-security.yml` adds three checks: dependency review
+of what a PR adds, a zizmor audit of the workflows, and cargo-deny with
+`templates/rust/deny.toml` for Cargo workspaces. A new RustSec advisory reports
+on pull requests without blocking them, and fails the weekly and default-branch
+runs until someone updates, replaces, or records an exception for the crate.
+Record each `deny.toml` or zizmor exception next to it, with the reason.
+
+Repository settings complete the baseline: Dependabot alerts and security updates,
+secret scanning with push protection, private vulnerability reporting, and CodeQL
+default setup. Organization defaults enable the first four for new repositories;
+enable CodeQL when the first code lands. Private repositories on the Free plan
+get only Dependabot alerts and updates, so dependency review does not run there.
 Updating this guide does not upgrade consuming repositories automatically.
 
 Sources: [pnpm installation and compatibility](https://pnpm.io/installation),
