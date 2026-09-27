@@ -190,9 +190,12 @@ precheck continues only when:
   `gh api repos/owner/repo/issues`), so a dependency wait does not start a run
   every tick;
 
-or when one of the user's open, non-draft PRs conflicts with its base and no
-agent in its worktree is `working`. That condition starts a run even when the
-issue limit is reached; see [Repair conflicting PRs](#repair-conflicting-prs).
+or when one of the user's open, non-draft PRs needs repair as
+[Repair conflicting PRs](#repair-conflicting-prs) defines it. That condition
+starts a run even when the issue limit is reached. GitHub computes mergeability
+lazily, so `mergeable` is `UNKNOWN` right after the base moves; do not treat it
+as clean. Read each such PR with `gh api repos/owner/repo/pulls/<number>` to
+start the computation, then list again after a short wait.
 
 Recheck those conditions, then pick one issue: first an issue that open issues
 are blocked by, then milestone order, then the oldest. Skip issues blocked by an
@@ -269,11 +272,14 @@ sibling PR editing the same file merges first. Its author's
 conflicts only while it runs, and the merge gate skips a conflicting PR for its
 first 24 hours, so without this step the PR waits for a person.
 
-Before claiming new issues, list the user's open, non-draft PRs whose
-`mergeable` is `CONFLICTING`. Take each one whose worktree has no `working`
-agent and whose branch no live Dispatch in any Run owns; never add a second
-writer. If its worktree is dirty or its HEAD differs from the pushed head, do
-not touch it: comment on the PR and report it.
+The coordinator owns repair of its repositories' open, non-draft PRs whose
+worker has settled. Check at the start of every supervision pass, not only
+before pickup: a sibling can merge while workers are still running. A PR needs
+repair when its `mergeable` is `CONFLICTING`, or still `UNKNOWN` after the
+recheck above, and no live agent holds its worktree and no live Dispatch in any
+Run owns its branch; never add a second writer. If its worktree is dirty or its
+HEAD differs from the pushed head, do not touch it: hand the PR to the user
+with a PR comment and the report, and through Roger when set up.
 
 Start one supervised repair worker in the PR's existing worktree with
 `worker-start --worktree path:<worktree>`. Its spec applies the Wait for merge
@@ -283,7 +289,8 @@ a generated file, take either side and regenerate it with the repository's
 generator; run the repository's checks, push, and confirm the PR is `MERGEABLE`
 with CI started; then follow the review follow-up to its cap and send one
 `worker_done`. A resolution that would choose between behaviours is a blocker:
-the worker comments it on the PR and the coordinator adds `needs-human-review`.
+the worker comments it on the PR and the coordinator adds `needs-human-review`
+and, with Roger set up, asks the user through Roger.
 
 A repair does not use the issue limit and does not claim or relabel the PR's
 issue. Run at most two repairs at once across the job's repositories, and start
@@ -374,8 +381,9 @@ Every run ends each PR in exactly one of four states:
   an agent in the branch's worktree is `working`, or the PR conflicts with its
   base and its head is less than 24 hours old. The author's
   [review follow-up](../../origin89-commits/references/pr-review-follow-up.md)
-  owns that phase and resolves conflicts; after it ends, idle pickup's
-  [repair](#repair-conflicting-prs) does, until the PR merges. A PR still pending 24 hours after its head commit is
+  resolves conflicts only while it runs, and it is often bounded; once it has
+  ended, idle pickup's [repair](#repair-conflicting-prs) owns them until the PR
+  merges. A PR still pending 24 hours after its head commit is
   stalled; hand it over.
 - **Merge** when all rules hold.
 - **Ask for fixes** when fix requests are granted, only rules 3–5 fail, and
