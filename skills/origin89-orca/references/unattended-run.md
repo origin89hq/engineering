@@ -276,10 +276,12 @@ The coordinator owns repair of its repositories' open, non-draft PRs whose
 worker has settled. Check at the start of every supervision pass, not only
 before pickup: a sibling can merge while workers are still running. A PR needs
 repair when its `mergeable` is `CONFLICTING`, or still `UNKNOWN` after the
-recheck above, and no live agent holds its worktree and no live Dispatch in any
-Run owns its branch; never add a second writer. If its worktree is dirty or its
-HEAD differs from the pushed head, do not touch it: hand the PR to the user
-with a PR comment and the report, and through Roger when set up.
+recheck above, it lacks `needs-human-review` and `human-only`, and no live
+agent holds its worktree and no live Dispatch in any Run owns its branch; never
+add a second writer. If its worktree is dirty or its HEAD differs from the
+pushed head, do not touch it: hand it over. A hand-over adds
+`needs-human-review`, which keeps later passes from repeating it, comments on
+the PR, lists it in the report, and asks through Roger when set up.
 
 Start one supervised repair worker in the PR's existing worktree with
 `worker-start --worktree path:<worktree>`. Its spec applies the Wait for merge
@@ -288,9 +290,12 @@ or force-push; resolve only conflicts whose intent is clear on both sides; for
 a generated file, take either side and regenerate it with the repository's
 generator; run the repository's checks, push, and confirm the PR is `MERGEABLE`
 with CI started; then follow the review follow-up to its cap and send one
-`worker_done`. A resolution that would choose between behaviours is a blocker:
-the worker comments it on the PR and the coordinator adds `needs-human-review`
-and, with Roger set up, asks the user through Roger.
+`worker_done`. For a PR that is still `UNKNOWN`, the worker first test-merges
+the base locally; when that is clean, it pushes nothing and reports, and the
+coordinator hands the PR over if a later pass still sees `UNKNOWN`, because an
+unneeded update restarts reviews. A resolution that would choose between
+behaviours is a blocker: the worker comments it on the PR and the coordinator
+hands the PR over.
 
 A repair does not use the issue limit and does not claim or relabel the PR's
 issue. Run at most two repairs at once across the job's repositories, and start
