@@ -45,7 +45,10 @@ only with the positive proof the guide requires.
 A worker that needs an action outside its authority, or one that cannot be undone,
 escalates to the coordinator. The coordinator parks that Task, optionally with a
 `gate-create` so dependent Tasks wait, keeps the other items moving, and lists the
-decision in its report. The user sees it only there. For PRs the run opens,
+decision in its report. When `roger` is installed and `roger list --open`
+succeeds, the coordinator also asks the user through Roger and resumes the Task
+from the answer on a later pass; run `roger skill orca` and follow it. Without
+Roger, the user sees the decision only in the report. For PRs the run opens,
 follow [review follow-up](../../origin89-commits/references/pr-review-follow-up.md).
 
 ## Keep a decision log
@@ -317,7 +320,15 @@ Every run ends each PR in exactly one of four states:
   each failure is fixable on the branch, within the fix budget below. A head
   behind the base that is otherwise settled goes here, not to Skip.
 - **Hand over** otherwise: add `needs-human-review` and post one comment giving
-  the head SHA, each failed rule, and any findings.
+  the head SHA, each failed rule, and any findings. With Roger set up, also
+  create the merge Ask that `roger skill orca` describes and name it in the
+  comment.
+
+With Roger set up, the precheck also continues when
+`roger list --answered --unfinished` returns anything, and the gate handles
+each answer as `roger skill orca` describes. An approval stands in only for "a
+person with write access approved this head" in rule 7; every other rule must
+still hold at the approved SHA.
 
 Merge only when all of these hold for the same head SHA:
 
@@ -401,7 +412,8 @@ The fix budget bounds rework at two rounds, and every other failure hands
 over. Each hand-over comment carries
 `<!-- origin89-merge-gate head=<sha> -->`, and the gate does not judge that SHA
 again unless a person removed `needs-human-review` after that comment. Removing
-the label allows one new evaluation, even of the same head. When the PR already
+the label allows one new evaluation, even of the same head, and so does an
+answer to that head's Roger merge Ask. When the PR already
 has two hand-over comments, the gate leaves it to the person, who merges or
 closes it. When the branch's worktree belongs to an Orca Run, send each verdict
 to that coordinator as one message with
