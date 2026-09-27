@@ -173,7 +173,7 @@ template removes the first three when an issue closes.
 ## Idle pickup
 
 A job that coordinates the next issue when agents are idle. Run it every 15–30
-minutes on weekdays from a dedicated dispatch worktree; the coordinator reads,
+minutes around the clock from a dedicated dispatch worktree; the coordinator reads,
 claims, launches, and handles messages, but never edits code there. For a queue
 spanning repositories, use one coordinator automation with explicit repository
 selectors rather than separate consoles for the user to monitor. It summarizes
@@ -188,11 +188,17 @@ precheck continues only when:
   `human-only`, an assignee, a linked Orca worktree, or an open blocker
   (`issue_dependencies_summary.blocked_by` above 0 in
   `gh api repos/owner/repo/issues`), so a dependency wait does not start a run
-  every tick.
+  every tick;
+
+or when one of the user's open, non-draft PRs conflicts with its base and no
+agent in its worktree is `working`. That condition starts a run even when the
+issue limit is reached; see [Repair conflicting PRs](#repair-conflicting-prs).
 
 Recheck those conditions, then pick one issue: first an issue that open issues
 are blocked by, then milestone order, then the oldest. Skip issues blocked by an
-open issue. Before claiming, read the issue body and comments. When the text
+open issue. Do not run two issues at once that allocate in the same generated
+file, such as a protocol registry: the second waits for the first to merge,
+because a sibling merging first leaves the other PR conflicting. Before claiming, read the issue body and comments. When the text
 names an open issue as a prerequisite and no blocked-by link records it, do not
 claim the issue; skip it and list it in the report so the link gets added.
 Idle pickup requires explicit authority for workers to commit, push,
@@ -254,6 +260,35 @@ available, report that limitation before claiming an issue; do not silently fall
 back to a standalone agent. Do not redispatch an already running standalone
 worker merely to attach messaging; preserve its work and use Orca's documented
 recovery or terminal-reuse route once its state permits that transition.
+
+### Repair conflicting PRs
+
+A picked-up PR can start conflicting after its worker settles, typically when a
+sibling PR editing the same file merges first. Its author's
+[review follow-up](../../origin89-commits/references/pr-review-follow-up.md) owns
+conflicts only while it runs, and the merge gate skips a conflicting PR for its
+first 24 hours, so without this step the PR waits for a person.
+
+Before claiming new issues, list the user's open, non-draft PRs whose
+`mergeable` is `CONFLICTING`. Take each one whose worktree has no `working`
+agent and whose branch no live Dispatch in any Run owns; never add a second
+writer. If its worktree is dirty or its HEAD differs from the pushed head, do
+not touch it: comment on the PR and report it.
+
+Start one supervised repair worker in the PR's existing worktree with
+`worker-start --worktree path:<worktree>`. Its spec applies the Wait for merge
+section of the review follow-up: merge the base into the branch, never rebase
+or force-push; resolve only conflicts whose intent is clear on both sides; for
+a generated file, take either side and regenerate it with the repository's
+generator; run the repository's checks, push, and confirm the PR is `MERGEABLE`
+with CI started; then follow the review follow-up to its cap and send one
+`worker_done`. A resolution that would choose between behaviours is a blocker:
+the worker comments it on the PR and the coordinator adds `needs-human-review`.
+
+A repair does not use the issue limit and does not claim or relabel the PR's
+issue. Run at most two repairs at once across the job's repositories, and start
+them before any new issue. Verify the new head is `MERGEABLE` with checks green
+before releasing the worker.
 
 Start with `agent-ready` applied by the user. Let the hygiene job apply it only
 after its reports have been reliable, and raise the limit only when picked-up
@@ -339,7 +374,8 @@ Every run ends each PR in exactly one of four states:
   an agent in the branch's worktree is `working`, or the PR conflicts with its
   base and its head is less than 24 hours old. The author's
   [review follow-up](../../origin89-commits/references/pr-review-follow-up.md)
-  owns that phase and resolves conflicts until the PR merges. A PR still pending 24 hours after its head commit is
+  owns that phase and resolves conflicts; after it ends, idle pickup's
+  [repair](#repair-conflicting-prs) does, until the PR merges. A PR still pending 24 hours after its head commit is
   stalled; hand it over.
 - **Merge** when all rules hold.
 - **Ask for fixes** when fix requests are granted, only rules 3–5 fail, and
