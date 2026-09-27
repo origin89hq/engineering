@@ -92,7 +92,9 @@ constraints, ownership, and acceptance fields, it names:
 - the authorization it inherits: edit, commit, push, open PR, or none. A worker
   never gains authority the coordinator lacks. Workers never flash firmware or
   operate equipment. They escalate to the coordinator, which parks the Task and
-  lists the decision in its report to the user.
+  lists the decision in its report to the user. When `roger` is installed and
+  `roger list --open` succeeds, the coordinator also asks through Roger as
+  `roger skill orca` describes.
 
 Writers get isolated worktrees: `--worktree new-top-level` for independent issues,
 `--worktree new-child` for related work. Read-only workers may share the current
@@ -173,4 +175,5 @@ When the user steps away, asks to run until done, or asks for a recurring job,
 read [references/unattended-run.md](references/unattended-run.md) first. It
 includes the [merge gate](references/unattended-run.md#merge-gate), which merges
 safe PRs, asks the branch's worker for bounded fixes, and labels the rest
-`needs-human-review`.
+`needs-human-review`. With [Roger](https://github.com/origin89hq/roger) set up,
+hand-overs also become Roger Asks, and answers return to the gate.
