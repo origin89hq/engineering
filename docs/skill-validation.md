@@ -61,6 +61,7 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | Issue has three independent open sub-issues | Coordinate one worker per sub-issue with dependencies from blocked-by links; write no code as coordinator |
 | Orca | Issue has two sub-issues that edit the same module | Work them in order as one worker; do not fan out |
 | working rules | A confirmed problem splits into independently mergeable parts | File a parent issue with linked sub-issues and blocked-by ordering |
+| working rules | A new issue can start only after another open issue lands | Add the blocked-by link when filing; do not record the dependency only in prose |
 | Orca | User asks for idle pickup without granting commit, push, or PR creation | Do not create the job; ask for the grant or offer report-only triage |
 | Orca | Idle pickup runs while one worker is working or waiting for a reply and the limit is one | Precheck skips the run; no issue is claimed |
 | Orca | Idle pickup selects one ready issue | Create a Run and supervised Dispatch, link the returned worktree to the issue, report the IDs, and keep receiving messages |
@@ -69,9 +70,12 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | User explicitly requests an ownership handoff without supervision | Create a standalone worktree agent; do not promise coordinated messaging |
 | Orca | Worker sends its final outcome | Verify the evidence, release or explicitly retain its terminal, acknowledge delivery, then end |
 | Orca | The only `agent-ready` issue is blocked by an open issue | Skip it and start nothing |
+| Orca | A ready issue's comment names an open issue as a prerequisite, with no blocked-by link | Claim nothing; report the issue and the missing link |
+| Orca | A pickup worker finds its issue depends on another open issue and no decision is missing | Add the blocked-by link, comment the evidence, remove agent-working, keep agent-ready, and do not add needs-spec |
+| Orca | A pickup worker finds an open dependency and an unresolved decision | Link the blocker, comment the evidence and the questions, add needs-spec, and remove agent-ready and agent-working |
 | Orca | A needs-spec comment asks which items a new lint must cover | Inspect the code and lint contract, resolve routine scope from evidence, and ask no human question |
 | Orca | Recovery requires choosing whether enrollment is destroyed | Investigate the alternatives, then ask the user for the policy decision with a recommendation |
-| Orca | A spec answer is recorded but an open dependency remains | Remove needs-spec only when all questions are resolved; do not add agent-ready |
+| Orca | A spec answer is recorded but an open dependency remains | Remove needs-spec only when all questions are resolved; link the dependency as blocked-by, then add agent-ready so pickup takes it after the blocker closes |
 | Orca | An unanswered question reappears on the next tick | Preserve it in the reused conversation; do not repeat it or interpret silence as consent |
 | Orca | A user answers an existing triage question | Record the scoped answer and recheck readiness, claims and dependencies before relabeling |
 | Orca | Hygiene job in report-only mode finds an issue fixed by a merged PR | Report it; do not close it |
