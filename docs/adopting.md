@@ -109,8 +109,9 @@ for the ecosystems the repository uses, listing each separate lockfile directory
 Add `templates/workflows/origin89-security.yml` as
 `.github/workflows/origin89-security.yml`, and for Cargo workspaces copy
 `templates/rust/deny.toml` beside each workspace root. Run `cargo deny check`,
-and run zizmor at the pinned version on the repository's workflows before opening
-the PR; fix findings or record each reviewed exception inline. The
+and run zizmor at the pinned version on `.github/`, including the Dependabot
+config, before opening the PR; fix findings or record each reviewed exception
+inline. The
 [dependency standard](dependencies.md#keep-the-baseline-current) lists the
 repository settings to confirm.
 

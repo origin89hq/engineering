@@ -76,7 +76,8 @@ Dependabot proposes updates through normal PRs. Each repository keeps a
 `.github/dependabot.yml` started from `templates/dependabot.yml`, with one entry
 per package ecosystem and lockfile directory. Version updates run weekly and
 group minor and patch releases per ecosystem; majors arrive as separate PRs. A
-three-day cooldown keeps proposals at or beyond pnpm's `minimumReleaseAge`.
+seven-day cooldown, the minimum zizmor accepts, keeps proposals beyond pnpm's
+`minimumReleaseAge` and gives the ecosystem time to catch a compromised release.
 Security updates are not delayed or grouped. People review and merge every
 update; do not auto-merge dependency PRs. Treat a major or firmware toolchain
 update as a migration and requalify it where hardware requires.
