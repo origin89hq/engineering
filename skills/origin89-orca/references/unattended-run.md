@@ -283,8 +283,9 @@ it and cannot collide, and the PR shows only its own diff. Stack only on a PR
 whose worker has settled and that lacks `needs-human-review` and `human-only`;
 otherwise pick another issue. The spec names the lower branch and head SHA and
 has the worker create the layer with `gh stack add <branch>` from a checkout of
-that branch, open the PR with `gh stack submit --auto --open`, and never edit
-the lower layer. A finding that belongs in the lower layer goes back to the
+that branch, open the PR with `gh stack submit --auto --open`, put the line
+`Stacked on #<lower PR>` in its body so a later pass can find the stack, and
+never edit the lower layer. A finding that belongs in the lower layer goes back to the
 coordinator.
 
 Stacks keep one writer per layer. Only the coordinator, through a repair
@@ -325,8 +326,11 @@ unneeded update restarts reviews. A resolution that would choose between
 behaviours is a blocker: the worker comments it on the PR and the coordinator
 hands the PR over.
 
-A stacked PR also needs repair when its lower layer has merged, so the gate can
-reach it, or when `gh stack view --json` reports `needsRebase`. Its repair
+A stacked PR also needs repair when the PR its `Stacked on` line names has
+merged and that merge commit is not in its head, or when `gh stack view --json`
+reports `needsRebase`. With squash merges and branch deletion, GitHub retargets
+the layer to the default branch but it still carries the lower layer's
+original commits, so it may not show as conflicting. Its repair
 worker restacks with `gh stack sync` instead of merging the base: `sync`
 handles squash-merged layers and retargets each PR to its new base. This is
 the only repair that force-pushes, and only the stack's own layers. On a
