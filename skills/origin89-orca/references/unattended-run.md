@@ -182,11 +182,17 @@ precheck continues only when:
   one; include workers waiting for a reply, not just those generating output;
 - fewer than the limit of the user's ready PRs await review;
 - an open `agent-ready` issue exists without `agent-working`, `needs-spec`,
-  `human-only`, an assignee, or a linked Orca worktree.
+  `human-only`, an assignee, a linked Orca worktree, or an open blocker
+  (`issue_dependencies_summary.blocked_by` above 0 in
+  `gh api repos/owner/repo/issues`), so a dependency wait does not start a run
+  every tick.
 
 Recheck those conditions, then pick one issue: first an issue that open issues
 are blocked by, then milestone order, then the oldest. Skip issues blocked by an
-open issue. Idle pickup requires explicit authority for workers to commit, push,
+open issue. Before claiming, read the issue body and comments. When the text
+names an open issue as a prerequisite and no blocked-by link records it, do not
+claim the issue; skip it and list it in the report so the link gets added.
+Idle pickup requires explicit authority for workers to commit, push,
 and open PRs on their own branches; without it, do not create the job. Never
 merge, publish releases, flash firmware, or operate equipment.
 
@@ -210,16 +216,28 @@ merge, publish releases, flash firmware, or operate equipment.
    Process the full delivery before acknowledgment. The worker follows its live
    preamble for mailbox checks, blocking `ask`, and exactly one `worker_done`.
 4. Answer questions from available evidence within the grant. Missing product
-   information must reach the user; never invent an answer. Have the worker
-   record specific questions on the issue, add `needs-spec`, remove `agent-ready`
-   and `agent-working`, and settle with the blocker. Do not leave a worker blocked
-   on an inbox whose coordinator has ended.
+   information must reach the user; never invent an answer. A worker that cannot
+   finish records the blocker on the issue, which is the durable record once the
+   Run ends, and settles with it. Do not leave a worker blocked on an inbox whose
+   coordinator has ended. Separate the two blocker kinds:
+   - **Waiting on an open issue:** add the blocked-by link with
+     `gh api --method POST repos/owner/repo/issues/<number>/dependencies/blocked_by -F issue_id=<id>`,
+     where `<id>` is the blocking issue's numeric `id`, not its number. Comment
+     the evidence, remove `agent-working`, and keep `agent-ready`, so pickup
+     skips the issue until the blocker closes and then takes it with no human
+     step. Never leave a dependency only in prose.
+   - **Missing a decision only the user can make:** comment the specific
+     questions, add `needs-spec`, and remove `agent-ready` and `agent-working`.
+
+   When both apply, do both.
 5. Follow the orchestration guide through settlement and terminal ownership.
    Verify the reported PR or blocker and follow the PR-review follow-up contract.
    Release settled terminals, or retain them only at the user's request; preserve
    their worktrees and branches. Remove this attempt's `agent-working` claim after
    verified settlement; never clear another attempt's claim. Report the result
-   and unresolved verification.
+   and unresolved verification. List together the issues this run returned to
+   `needs-spec` or linked to a blocker, and the issues skipped for an unlinked
+   prose dependency, so the user sees them in one place.
    End only after completion accounting, not immediately after launch.
 
 A scheduled session must support this coordinator lifetime. If it cannot remain
@@ -420,8 +438,9 @@ previous day, when an open issue has had no activity for 60 days, or when a
 closed issue still carries `agent-ready`, `agent-working` or `needs-spec`, so
 quiet repositories still get those checks. It checks open issues for: a linked PR that merged, a parent whose
 sub-issues are all closed, likely duplicates, a missing done condition, work
-that should be split into sub-issues, readiness for `agent-ready`, and no
-activity for 60 days. It also reports closed issues that still carry
+that should be split into sub-issues, readiness for `agent-ready`, a
+dependency on an open issue stated only in prose without a blocked-by link, and
+no activity for 60 days. It also reports closed issues that still carry
 `agent-ready`, `agent-working` or `needs-spec`.
 
 Run it report-only first; the report stays in the Orca run history. Once the
