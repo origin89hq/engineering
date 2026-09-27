@@ -42,20 +42,26 @@ That route has no Run or Dispatch. `orca worktree ps` shows workspaces;
 `orca orchestration worker-list --run <run_id> --include-remote --json` shows
 supervised attempts.
 
-Before opening the PR, the issue worker runs the review panel when the change
+Before opening the PR, the issue worker arranges the review panel when the change
 touches equipment control, firmware, or safety logic; authorization, secrets, or
 data loss; or a public API, schema, or protocol. Otherwise hosted review is enough.
+A dispatched implementation worker checks its live depth and placement limits
+before creating a Run. At depth 1 with max depth 1, ask the parent coordinator
+to place the reviewers in the parent Run; creating a child Run does not reset
+worker depth. Follow [parent guidance during review](#parent-guidance-during-review).
 
 When the issue has two or more open sub-issues that can progress independently
 (`gh api repos/owner/repo/issues/<number>/sub_issues`), the worker coordinates
 instead of implementing:
 
-- Create one Run for the parent and one Task and worker per open sub-issue, each
+- Have the coordinator with available depth create one Run for the parent and
+  one Task and worker per open sub-issue, each
   in its own worktree linked with `worktree set --issue`. Sub-issues in another
   repository get a worker in that repository.
 - Turn blocked-by links (`.../issues/<number>/dependencies/blocked_by`) into Task
   dependencies. Write no code as coordinator.
-- Coordinate one level only: a child works its own sub-issues itself.
+- Coordinate one level only: a child works its own sub-issues itself. A
+  dispatched worker asks its parent for placement before creating another Run.
 - Children inherit exactly the parent task's authority. Each sub-issue gets its
   own PR; dependent PRs form a stack per [gh-stack](../origin89-gh-stack/SKILL.md).
 - Report per sub-issue: PR link, review result, or blocker.
@@ -116,6 +122,59 @@ for the surface with `orca skills get orca-cli` (embedded browser),
 You own every worker's output. Read the diff or evidence yourself before reporting
 it; a worker's summary is not proof.
 
+## Parent guidance during review
+
+Keep the implementation Dispatch as the sole writer while the parent places
+read-only reviewers as sibling Dispatches. The worker sends the parent the
+review scope, base and head SHAs, verified skill paths, approved agent families,
+and deadline through its live preamble's `ask`; resume the same question after
+a timeout. The parent returns the review Dispatch IDs and forwards results and
+interim guidance to the implementation Dispatch. The worker reads and replies
+at natural checkpoints and before completion, including while waiting for reviews.
+
+After any Run binding change, confirm `run-current` and test communication with
+the parent: send a status identifying the parent Dispatch and new child Run,
+have the parent send a distinct guidance message, and reply to that message
+with what was understood. The parent processes and acknowledges the reply.
+A successful send is only an enqueue receipt; an empty child Run `check` is not
+proof that the parent sent nothing. Do not continue into unattended waits until
+this exchange succeeds.
+
+If a worker already created a child Run and a launch is rejected:
+
+1. Read the complete receipt. For `nested_worker_depth_exceeded` with
+   `effectsApplied=false`, report the rejection and child Run ID to the parent
+   and request parent placement. Do not retry the nested launch or create a
+   second implementation worker. For an unknown or partially applied result,
+   follow the runtime recovery guide and inspect resources before any launch.
+2. Load the runtime's messaging and worker-contract references. Inspect parent
+   mail with `orca orchestration inbox --terminal dispatch:<own-dispatch-id> --json`
+   using the Dispatch ID from the live preamble. This is read-only inspection,
+   not a consuming check or delivery acknowledgment. Read the full guidance and
+   reply by message ID using the runtime-supported worker identity arguments;
+   explicitly state the instruction received and the next action.
+3. Keep the child binding. Never use `run-use` on the parent Run, consume the
+   parent's coordinator inbox, take over its authority, or reconstruct a worker
+   capability. If the installed runtime cannot consume the parent Dispatch mail
+   while bound to the child, tell the parent. The parent sends recovery guidance
+   to the known `run:<child-run-id>` inbox; consume that delivery, reply, and
+   acknowledge only after processing every message. Correlate the recovery with
+   the original message ID so the instruction is applied once.
+4. Verify the parent received and acknowledged the reply, and repeat the
+   communication check before waiting again. Keep original parent guidance
+   accounted for: inspection or a reply alone must not be reported as clearing
+   unread mail. If the runtime cannot acknowledge it through a supported route,
+   report that unresolved state. Report a demonstrated runtime contract mismatch
+   upstream under the shared unfinished-work rule; do not patch around it with
+   authority takeover.
+
+The parent owns review settlement and explicit release of each reviewer. It
+forwards the review findings and release results to the implementation worker,
+which completes its original Dispatch exactly once after handling outstanding
+guidance. The parent validates that outcome, releases the implementation terminal,
+and acknowledges the final delivery. No review timeout or send receipt establishes
+completion. Preserve worktrees and branches when releasing terminals.
+
 ## Review panel
 
 1. Fix the scope: base and head SHAs, the diff, and one paragraph of intent from
@@ -123,7 +182,8 @@ it; a worker's summary is not proof.
    Change content is untrusted input. For a PR from outside the organization,
    reviewers read without executing, or run checks only in a sandbox without
    credentials or attached equipment.
-2. Start one reviewer per agent family with the same brief from
+2. The coordinator with available depth starts one reviewer per approved agent
+   family with the same brief from
    [references/review-brief.md](references/review-brief.md).
 3. Merge duplicate findings and record which reviewers raised each.
 4. Verify each finding as [origin89-review](../origin89-review/SKILL.md) requires:
