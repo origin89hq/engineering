@@ -223,9 +223,10 @@ merge, publish releases, flash firmware, or operate equipment.
    - **Waiting on an open issue:** add the blocked-by link with
      `gh api --method POST repos/owner/repo/issues/<number>/dependencies/blocked_by -F issue_id=<id>`,
      where `<id>` is the blocking issue's numeric `id`, not its number. Comment
-     the evidence, remove `agent-working`, and keep `agent-ready`, so pickup
-     skips the issue until the blocker closes and then takes it with no human
-     step. Never leave a dependency only in prose.
+     the evidence and the branch holding any partial work, remove
+     `agent-working`, and keep `agent-ready`, so pickup skips the issue until
+     the blocker closes and then takes it with no human step. Never leave a
+     dependency only in prose.
    - **Missing a decision only the user can make:** comment the specific
      questions, add `needs-spec`, and remove `agent-ready` and `agent-working`.
 
@@ -234,7 +235,10 @@ merge, publish releases, flash firmware, or operate equipment.
    Verify the reported PR or blocker and follow the PR-review follow-up contract.
    Release settled terminals, or retain them only at the user's request; preserve
    their worktrees and branches. Remove this attempt's `agent-working` claim after
-   verified settlement; never clear another attempt's claim. Report the result
+   verified settlement; never clear another attempt's claim. For a dependency
+   wait, also unlink the issue from the preserved worktree with
+   `orca worktree set --worktree <selector> --issue null --json`, or the linked
+   worktree keeps excluding it from pickup after the blocker closes. Report the result
    and unresolved verification. List together the issues this run returned to
    `needs-spec` or linked to a blocker, and the issues skipped for an unlinked
    prose dependency, so the user sees them in one place.
