@@ -199,7 +199,11 @@ merge, publish releases, flash firmware, or operate equipment.
    not permission to retry: follow its recovery receipt and preserve the claim
    until the absence of a live worker is established.
 2. Pass the verified skill snapshot, issue acceptance criteria, and inherited
-   authority in the spec. A parent with independent sub-issues coordinates them
+   authority in the spec. Include the parent Run and implementation Dispatch
+   context and require [parent placement and communication checks](../SKILL.md#parent-guidance-during-review)
+   before a depth-limited worker creates a child Run for review. The parent places
+   required reviewers as siblings while the implementation worker remains the
+   sole writer. A parent with independent sub-issues coordinates them
    under [Work from issues](../SKILL.md#work-from-issues), including workers in
    other repositories. Hardware verification stays with the user: implement and
    run host checks, and list the required bench work in the PR.
@@ -207,6 +211,9 @@ merge, publish releases, flash firmware, or operate equipment.
    keep supervising. Use `orchestration send --to dispatch:<id>` for guidance,
    `check --wait` for incoming messages, and `reply --id` for worker questions.
    A successful send proves enqueue only; a worker reply establishes receipt.
+   After a worker changes Run binding, require a guidance/reply exchange and
+   acknowledge the reply before relying on unattended waits. If Dispatch mail
+   remains unread, follow the linked recovery path without taking over a Run.
    Process the full delivery before acknowledgment. The worker follows its live
    preamble for mailbox checks, blocking `ask`, and exactly one `worker_done`.
 4. Answer questions from available evidence within the grant. Missing product

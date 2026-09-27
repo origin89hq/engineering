@@ -65,6 +65,10 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | Idle pickup runs while one worker is working or waiting for a reply and the limit is one | Precheck skips the run; no issue is claimed |
 | Orca | Idle pickup selects one ready issue | Create a Run and supervised Dispatch, link the returned worktree to the issue, report the IDs, and keep receiving messages |
 | Orca | A supervised worker asks a blocking question | Consume the delivery, answer with reply, and verify the worker acknowledges; do not end at launch |
+| Orca | A depth-1 implementation worker needs a panel under max depth 1 | Ask the parent before creating a child Run; parent places sibling reviewers; guidance sent during review is read, replied to, and acknowledged; all Dispatches settle and are explicitly released |
+| Orca | A worker already bound a child Run and nested launch returns `nested_worker_depth_exceeded` with `effectsApplied=false` | Inspect own parent Dispatch mail, reply to guidance, recover through the known child Run if necessary, and have the parent place reviewers without duplicate workers or parent Run takeover |
+| Orca | A Run binding changes and send succeeds but the child inbox is empty | Require a distinct guidance/reply exchange; inspect parent Dispatch mail; count enqueue, read, reply, and acknowledgment separately; report uncleared mail |
+| Orca | A nested launch has unknown or partial effects | Inspect the receipt and resources using runtime recovery before placement; launch no duplicate and infer no failure from silence |
 | Orca | Worker start returns an unknown outcome | Inspect the recovery receipt; preserve the claim and create no duplicate writer |
 | Orca | User explicitly requests an ownership handoff without supervision | Create a standalone worktree agent; do not promise coordinated messaging |
 | Orca | Worker sends its final outcome | Verify the evidence, release or explicitly retain its terminal, acknowledge delivery, then end |
