@@ -285,9 +285,11 @@ acceptance checks without asking the user to choose files.
   ambiguous answer rather than applying it to unrelated questions.
 - Re-read the issue before changing labels. Remove `needs-spec` only when all
   specification questions are resolved. Add `agent-ready` only with executable
-  acceptance criteria, no open dependency, and no `human-only`, assignee,
-  active claim, active worker or open implementation PR. If another blocker
-  remains, record that blocker and leave `agent-ready` absent. Preserve worktree
+  acceptance criteria and no `human-only`, assignee, active claim, active
+  worker or open implementation PR. An open dependency does not withhold
+  `agent-ready` once it is a blocked-by link, because pickup skips the issue
+  until the blocker closes; add the link if only prose records it. If another
+  blocker remains, record it and leave `agent-ready` absent. Preserve worktree
   links and other workers' claims; verify the saved comment and labels.
 
 Triage prepares work; it does not silently gain implementation, commit, push,

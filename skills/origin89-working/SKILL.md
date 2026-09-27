@@ -71,7 +71,12 @@ Use `gh` with an explicit `--repo owner/repo`, verified from the Git remote:
    actual behavior, impact, relevant code or PR links, and a concrete next step.
    Keep the body concise, with one
    physical line per paragraph and no assistant attribution.
-3. Read back the created issue with `gh issue view` and include its URL in the
+3. When the issue cannot start until another open issue lands, add a
+   blocked-by link, not only a sentence saying so:
+   `gh api --method POST repos/owner/repo/issues/<number>/dependencies/blocked_by -F issue_id=<id>`,
+   with the blocking issue's numeric `id`. Scheduled pickup reads only the link.
+   Add one whenever a later comment or edit reveals a dependency.
+4. Read back the created issue with `gh issue view` and include its URL in the
    handoff. One issue should cover one problem, not every symptom or mention.
 
 When a problem splits into parts that can each be changed, verified, and merged
