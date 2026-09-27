@@ -74,7 +74,10 @@ targets may require a qualified or vendor-supported version; record that constra
 
 Dependabot proposes updates through normal PRs. Each repository keeps a
 `.github/dependabot.yml` started from `templates/dependabot.yml`, with one entry
-per package ecosystem and lockfile directory. Version updates run weekly and
+per package ecosystem and lockfile directory. Requirements files compiled with
+`uv pip compile` use the `uv` ecosystem and keep uv's generated header, which
+Dependabot reads for the compile options; the `pip` ecosystem regenerates them
+with pip-tools and loses universal resolution. Version updates run weekly and
 group minor and patch releases per ecosystem; majors arrive as separate PRs. A
 seven-day cooldown, the minimum zizmor accepts, keeps proposals beyond pnpm's
 `minimumReleaseAge` and gives the ecosystem time to catch a compromised release.
