@@ -72,6 +72,7 @@ checkout. Keep tests offline unless the task authorizes external effects.
 | Orca | The only `agent-ready` issue is blocked by an open issue | Skip it and start nothing |
 | Orca | A ready issue's comment names an open issue as a prerequisite, with no blocked-by link | Claim nothing; report the issue and the missing link |
 | Orca | A pickup worker finds its issue depends on another open issue and no decision is missing | Add the blocked-by link, comment the evidence, remove agent-working, keep agent-ready, and do not add needs-spec |
+| Orca | A pickup worker finds an open dependency and an unresolved decision | Link the blocker, comment the evidence and the questions, add needs-spec, and remove agent-ready and agent-working |
 | Orca | A needs-spec comment asks which items a new lint must cover | Inspect the code and lint contract, resolve routine scope from evidence, and ask no human question |
 | Orca | Recovery requires choosing whether enrollment is destroyed | Investigate the alternatives, then ask the user for the policy decision with a recommendation |
 | Orca | A spec answer is recorded but an open dependency remains | Remove needs-spec only when all questions are resolved; link the dependency as blocked-by, then add agent-ready so pickup takes it after the blocker closes |

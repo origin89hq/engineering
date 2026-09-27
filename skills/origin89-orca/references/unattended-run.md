@@ -205,7 +205,9 @@ merge, publish releases, flash firmware, or operate equipment.
    not permission to retry: follow its recovery receipt and preserve the claim
    until the absence of a live worker is established.
 2. Pass the verified skill snapshot, issue acceptance criteria, and inherited
-   authority in the spec. A parent with independent sub-issues coordinates them
+   authority in the spec. When the issue names a branch holding an earlier
+   attempt's partial work, name it in the spec and have the worker build on it
+   rather than start over. A parent with independent sub-issues coordinates them
    under [Work from issues](../SKILL.md#work-from-issues), including workers in
    other repositories. Hardware verification stays with the user: implement and
    run host checks, and list the required bench work in the PR.
