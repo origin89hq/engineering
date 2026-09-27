@@ -1,0 +1,11 @@
+{
+  "name": "Origin89 security checks",
+  "description": "Review new dependencies, audit workflows with zizmor, and check Rust dependencies with cargo-deny.",
+  "iconName": "octicon shield",
+  "categories": [
+    "Rust",
+    "JavaScript",
+    "TypeScript",
+    "Python"
+  ]
+}
