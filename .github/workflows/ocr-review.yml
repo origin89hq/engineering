@@ -41,7 +41,7 @@ jobs:
       group: ocr-review-${{ github.repository }}-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     steps:
-      - uses: alibaba/open-code-review@bccbc15f785269400735d5255540c231e6c02b6d # v1.12.9
+      - uses: alibaba/open-code-review@a758d9cbfb689937c7857ad64b2dd66adb58c0c2 # v1.12.11
         with:
           llm_url: ${{ inputs.llm_url }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
